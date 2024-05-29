@@ -3,7 +3,7 @@ import time
 import random
 
 session = qi.Session()
-session.connect("tcp://192.168.1.152:9559")
+session.connect("tcp://192.168.1.110:9559")
 
 tts = session.service("ALTextToSpeech")
 behavior = session.service("ALBehaviorManager")

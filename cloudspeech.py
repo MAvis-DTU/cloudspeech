@@ -60,36 +60,38 @@ with open('openaiKey.txt', 'r') as f:
 api_key = os.getenv("gpt4key")
 
 def nao_init():
-    subprocess.run(['python2', 'robot/nao_init.py'],stdout=subprocess.DEVNULL,
+    subprocess.run(['python2.7', 'robot/nao_init.py'],stdout=subprocess.DEVNULL,
     stderr=subprocess.STDOUT)
 
 def nao_facetrack():
-    subprocess.run(['python2', 'robot/nao_facetrack.py'],stdout=subprocess.DEVNULL,
+    subprocess.run(['python2.7', 'robot/nao_facetrack.py'],stdout=subprocess.DEVNULL,
     stderr=subprocess.STDOUT)
 
 def say(s, bot_name):
     s = s.replace("\n", " ")
-    subprocess.run(['python2', 'robot/nao_say.py'], input=bytes(s + '\n' + bot_name, encoding="utf-8"),stdout=subprocess.DEVNULL,
+    subprocess.run(['python2.7', 'robot/nao_say.py'], input=bytes(s + '\n' + bot_name, encoding="utf-8"),stdout=subprocess.DEVNULL,
     stderr=subprocess.STDOUT)
 
 def listen():
-    subprocess.run(['python2', 'robot/nao_listen.py'], stdout=subprocess.DEVNULL,
+    subprocess.run(['python2.7', 'robot/nao_listen.py'], stdout=subprocess.DEVNULL,
     stderr=subprocess.STDOUT)
 
 def objectDetectionSub():
     # open in a new terminal
-    subprocess.Popen(['python3', 'objectMedia.py'])
+    subprocess.Popen(['python', 'objectMedia.py'])
 
 def talking_gesture():
-    subprocess.run(['python2', 'robot/nao_talking.py'],stdout=subprocess.DEVNULL,
+    subprocess.run(['python2.7', 'robot/nao_talking.py'],stdout=subprocess.DEVNULL,
     stderr=subprocess.STDOUT)
 
 
-voices = {1: "21m00Tcm4TlvDq8ikWAM", # Rachel
-          2: "rU18Fk3uSDhmg5Xh41o4", # Ryan Kurk
-          3: "TWGIYqyf4ytM4ctpb0S1", # Pheobe
-          4: "nIBoiUir3RAsl7ppOJeu", # Dave - deep and gruff
-          5: "zrHiDhphv9ZnVXBqCLjz"} # Mimi
+#voices = {1: "21m00Tcm4TlvDq8ikWAM", # Rachel
+#          2: "rU18Fk3uSDhmg5Xh41o4", # Ryan Kurk
+#          3: "TWGIYqyf4ytM4ctpb0S1", # Pheobe
+#          4: "nIBoiUir3RAsl7ppOJeu", # Dave - deep and gruff
+#          5: "zrHiDhphv9ZnVXBqCLjz"} # Mimi
+
+voices = voices()
 
 voice_descriptions = """
      \n0: pepper the robot voice.
@@ -111,10 +113,10 @@ def elevenLabsSay(text, latency=1):
         # speak.Speak(text)
         #print("Generate Audio: START")
         #print("Text: ", text, file=sys.stderr)
-        audio = generate(text=text, voice=voices[voice_select], latency=latency)
-        #talking_gesture()
+        audio = generate(text=text, voice=voices[1], model="eleven_multilingual_v2")
+        talking_gesture()
         #print("Generate Audio: END")
-        #gesture_thread.start()
+        # gesture_thread.start()
         play(audio)
 
 # run object detection in a new terminal
@@ -124,7 +126,7 @@ def elevenLabsSay(text, latency=1):
 # we need some space
 print('\n\n\n')
 
-introductions = [
+"""introductions = [
     lambda x: f"Hi, my name is {x}! What's your name?",
     lambda x: f"Hello! My name is {x}. May I ask what you are called?",
     lambda x: f"Good day! I am {x}. Would you tell me your name?",
@@ -159,6 +161,43 @@ repeat_name = [
     "I'm sorry, I didn't quite catch your name. Could you say it again for me, please?",
     "Excuse me, but I didn't understand your name. Could you kindly repeat it?",
     "Excuse me, but I missed your name. Can you let me know what it was again?"
+]
+"""
+introductions =  [
+lambda x: f"Hej, mit navn er {x}! Hvad hedder du?",
+lambda x: f"Hej! Mit navn er {x}. Må jeg spørge, hvad du hedder?",
+lambda x: f"God dag! Jeg er {x}. Vil du fortælle mig dit navn?",
+lambda x: f"Hej! Jeg er {x}, rart at møde dig. Hvad hedder du?",
+lambda x: f"Velkommen! Jeg er {x}. Vil du dele dit navn med mig?",
+lambda x: f"Hej! Jeg er {x}. Vil du fortælle mig, hvad du hedder?",
+lambda x: f"Hej, mit navn er {x}! Må jeg bede om dit navn?",
+lambda x: f"Hej, jeg er {x}! Hvad skal jeg kalde dig?",
+lambda x: f"Dejligt at møde dig! Jeg er {x}. Hvad hedder du?",
+lambda x: f"Hej! Mit navn er {x}. Hvad hedder du, min ven?",
+lambda x: f"Hej, jeg er {x}! Vil du fortælle mig dit navn?",
+lambda x: f"Velkommen! Mit navn er {x}. Hvad kalder du dig?",
+lambda x: f"Hej, mit navn er {x}! Vil du dele dit navn med mig?",
+lambda x: f"God dag, jeg er {x}! Må jeg have fornøjelsen af at kende dit navn?",
+lambda x: f"Hej, jeg er {x}! Kan du fortælle mig, hvad du hedder?"
+]
+
+# Some phrases to repeat the name
+repeat_name = [
+"Undskyld, jeg fangede ikke dit navn. Kunne du sige det til mig igen?",
+"Mit fejl, jeg missede dit navn. Kunne du gentage det for mig, tak?",
+"Undskyld, men jeg fangede ikke helt dit navn. Ville du have noget imod at dele det igen?",
+"Ups, jeg forstod ikke dit svar. Kunne du sige dit navn igen, tak?",
+"Det ser ud til, at jeg misforstod dit navn. Kunne du sige det en gang til, tak?",
+"Undskyld, men jeg forstod ikke dit navn. Hvad var det igen?",
+"Undskyld, men jeg fangede ikke dit navn. Kan du sige det igen, tak?",
+"Undskyld for det - jeg fangede ikke helt dit navn. Kunne du gentage det, tak?",
+"Undskyld, men jeg hørte ikke dit navn tydeligt. Hvad var dit navn igen?",
+"Jeg må have misforstået dit svar. Kunne du venligst sige dit navn igen?",
+"Det ser ud til, at jeg ikke helt fik dit navn rigtigt. Ville du fortælle det til mig igen?",
+"Undskyld for forvirringen. Kunne du venligst dele dit navn igen?",
+"Undskyld, jeg fangede ikke helt dit navn. Kunne du sige det igen, tak?",
+"Undskyld, men jeg forstod ikke dit navn. Kunne du venligst gentage det?",
+"Undskyld, men jeg missede dit navn. Kan du fortælle mig, hvad det var igen?"
 ]
 
 def getConfig(language_code = "en-US"):         
@@ -235,7 +274,7 @@ def getName(temperature, openaiClient, language='en-US', robot_name='Pepper', ):
 
             else: 
                 name = pepper_response
-                pepper_response = 'So your name is ' + pepper_response
+                pepper_response = 'Så du hedder ' + pepper_response
                 elevenLabsSay(pepper_response)
                 print('Pepper: ' + pepper_response)
                 
@@ -339,9 +378,9 @@ def getParser():
     parser.add_argument('--temperature', type=float, default=0.7, help='temperature for the GPT-3 model, float between 0 and 2')
     parser.add_argument('--max_tokens', type=int, default=300, help='max tokens for the GPT-3 model')
     parser.add_argument('--top_p', type=float, default=1, help='top p for the GPT-3 model')
-    parser.add_argument('--language', type=str, default='en-US', help='language for the GPT-3 model: en-US, en-GB, da-DK etc. see https://cloud.google.com/speech-to-text/docs/speech-to-text-supported-languages for more.')
+    parser.add_argument('--language', type=str, default='da-DK', help='language for the GPT-3 model: en-US, en-GB, da-DK etc. see https://cloud.google.com/speech-to-text/docs/speech-to-text-supported-languages for more.')
     parser.add_argument('--final_read', type=bool, default=False, help='if true the final text will be read out loud by the robot')
-    parser.add_argument('--init_voice', type=int, default=1, help='init voice for the robot, 0. Robot, 1. Rachel, 2. Ryan Kurk, 3. Pheobe, 4. Dave, 5. Mimi')
+    parser.add_argument('--init_voice', type=int, default=2, help='init voice for the robot, 0. Robot, 1. Rachel, 2. Ryan Kurk, 3. Pheobe, 4. Dave, 5. Mimi')
     # parse the arguments
     args = parser.parse_args()
 
@@ -368,8 +407,8 @@ if __name__ == "__main__":
         elevenLabsSay(final_read)
 
     else:
-        #nao_facetrack()
-        #objectDetectionSub()
+        nao_facetrack()
+        # objectDetectionSub()
         openaiClient = openai.OpenAI(api_key=api_key)
 
         # get the name of the human if not specified using argument parser

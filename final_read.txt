@@ -1,1 +1,7 @@
-Hello sir
+Her er resultaterne af spørgeskema-undersøgelsen som handlede om hvilke muligheder I ser for brug af AI i jeres daglige arbejde. 
+
+I ser forskellige anvendelsesmuligheder for AI i jeres arbejdsdag. Flere understreger AI's potentiale til at effektivisere og automatisere processer som sagsbehandling, dataanalyse og dokumenthåndtering. Specifikt nævnes AI's evne til at håndtere opgaver som formulering og bearbejdelse af tekster, referatskrivning, samt udarbejdelse af udkast og summariske fremstillinger. Desuden peges der på mulighederne for at bruge AI som en sparringspartner til at forbedre sproglige formuleringer og generere indhold som taler og præsentationer.
+
+Nogle ser desuden AI som et værktøj til mere ensartede og konsistente tekster og afgørelser ved at sammenligne med tidligere tilfælde. Andre bemærker, hvordan AI kan bruges til inspiration og hurtig informationssøgning, herunder lovgivningsmæssige sammenhænge og tidligere beslutninger i udvalg. Der er også nævnt praktiske anvendelser som hjælp til oversættelse og kommunikation mellem systemer.
+
+Dog er der også deltagere, som enten ikke ser umiddelbare anvendelser af AI i deres arbejde, eller som er begrænset af regelsæt som GDPR, hvilket forhindrer dem i at anvende AI til visse formål. Dette viser en nuanceret opfattelse af AI's rolle i arbejdslivet, hvor potentialet anerkendes, men også begrænses af både regler og den nuværende teknologiske forståelse.

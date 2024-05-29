@@ -9,9 +9,9 @@ from collections import defaultdict
 def objectDetection():
     # STEP 1.1: 
     ROW_SIZE = 10  # pixels
-    FONT_SIZE = 2 
-    MARGIN = 10*FONT_SIZE
-    FONT_THICKNESS = 1
+    FONT_SIZE = 4
+    MARGIN = 30*FONT_SIZE
+    FONT_THICKNESS = 4
     TEXT_COLOR = (255, 0, 0)  # red
 
     def visualize(
@@ -57,7 +57,7 @@ def objectDetection():
 
 
     # get webcam
-    cap = cv2.VideoCapture(0)
+    cap = cv2.VideoCapture(1)
 
 
 
