@@ -2,8 +2,10 @@ import qi
 import time
 import random
 
+IP = raw_input() 
+
 session = qi.Session()
-session.connect("tcp://192.168.1.110:9559")
+session.connect(IP)
 
 tts = session.service("ALTextToSpeech")
 behavior = session.service("ALBehaviorManager")
@@ -26,7 +28,9 @@ animations = [
 while True:
     try:
         behavior.startBehavior(random.choice(animations))
+        s = raw_input()
     except (EOFError):
         time.sleep(0.01)
         continue
     break
+tts.say(s)

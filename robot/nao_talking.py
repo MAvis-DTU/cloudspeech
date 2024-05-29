@@ -2,8 +2,10 @@ import qi
 import time
 import random
 
+IP = raw_input() 
+
 session = qi.Session()
-session.connect("tcp://192.168.1.110:9559")
+session.connect(IP)
 behavior = session.service("ALBehaviorManager")
 
 animations = [

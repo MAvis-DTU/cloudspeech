@@ -26,21 +26,19 @@ Example usage:
 # [START speech_transcribe_streaming_mic]
 from __future__ import division
 
+from robot.nao_functions import * 
 import re
-import sys
+# import sys
 
 from google.cloud import speech
 
-import pyaudio
-from six.moves import queue
+# import pyaudio
 
 import openai
 import os
 import time
 import random
-
-import subprocess
-#import pyttsx3
+import threading
 
 import argparse
 
@@ -52,153 +50,111 @@ from elevenlabs import set_api_key
 import os
 import subprocess
 
-os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = 'chatkey.json'
 
-with open('openaiKey.txt', 'r') as f:
+os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = 'credentials/chatkey.json'
+
+with open('credentials/openaiKey.txt', 'r') as f:
     os.environ['gpt4key'] = f.read()
 
 api_key = os.getenv("gpt4key")
 
-def nao_init():
-    subprocess.run(['python2.7', 'robot/nao_init.py'],stdout=subprocess.DEVNULL,
-    stderr=subprocess.STDOUT)
+# Initialise verbose statement
+global verbose
+verbose = False
 
-def nao_facetrack():
-    subprocess.run(['python2.7', 'robot/nao_facetrack.py'],stdout=subprocess.DEVNULL,
-    stderr=subprocess.STDOUT)
+# Elevenlab voices
+eng_voices = {1: "21m00Tcm4TlvDq8ikWAM", # Rachel
+         2: "rU18Fk3uSDhmg5Xh41o4", # Ryan Kurk
+         3: "TWGIYqyf4ytM4ctpb0S1", # Pheobe
+         4: "nIBoiUir3RAsl7ppOJeu", # Dave - deep and gruff
+         5: "zrHiDhphv9ZnVXBqCLjz"} # Mimi
 
-def say(s, bot_name):
-    s = s.replace("\n", " ")
-    subprocess.run(['python2.7', 'robot/nao_say.py'], input=bytes(s + '\n' + bot_name, encoding="utf-8"),stdout=subprocess.DEVNULL,
-    stderr=subprocess.STDOUT)
+multi_voices = voices()
 
-def listen():
-    subprocess.run(['python2.7', 'robot/nao_listen.py'], stdout=subprocess.DEVNULL,
-    stderr=subprocess.STDOUT)
-
-def objectDetectionSub():
-    # open in a new terminal
-    subprocess.Popen(['python', 'objectMedia.py'])
-
-def talking_gesture():
-    subprocess.run(['python2.7', 'robot/nao_talking.py'],stdout=subprocess.DEVNULL,
-    stderr=subprocess.STDOUT)
-
-
-#voices = {1: "21m00Tcm4TlvDq8ikWAM", # Rachel
-#          2: "rU18Fk3uSDhmg5Xh41o4", # Ryan Kurk
-#          3: "TWGIYqyf4ytM4ctpb0S1", # Pheobe
-#          4: "nIBoiUir3RAsl7ppOJeu", # Dave - deep and gruff
-#          5: "zrHiDhphv9ZnVXBqCLjz"} # Mimi
-
-voices = voices()
-
-voice_descriptions = """
-     \n0: pepper the robot voice.
-     \n1: Female, very soothing, friendly and sophisticated.
-     \n2: Male, bright, young, expressive narrative voice. It could soothe, excite, inform, and entertain, all at the same time.
-     \n3: Female, young, playful and energetic voice, with a hint of assertiveness.
-     \n4: Male, middle-aged, deep and gruff voice, raw and intimidating. 
-     \n5: Female, young, light, delicate and sweet. It exudes innocence and charm. 
-     \n\n
-    """
+global voice_select
+voice_select = 1
 
 set_api_key("cb4a60d9eaf1ad9514b055a3be1fc3b6")
 # get the voices
 
-def elevenLabsSay(text, latency=1):
-    if voice_select == 0:
-        say(text, "Pepper")
+
+def elevenLabsSay(text, IP, multi_lingual=False):
+    if IP is not None:
+        split_sentences, gesture_numbers = getGestures(text, IP)
+        gesture_thread = threading.Thread(target=nao_gesture, args=(IP, split_sentences, gesture_numbers))
+
+    if voice_select == 0 and IP is not None:
+        assert IP is not None, "IP address is not specified, and thus the robot cannot speak. voice_select 0 is not possible."
+        say(IP, text, "Pepper", gesture_thread=gesture_thread)
     else:
-        # speak.Speak(text)
-        #print("Generate Audio: START")
-        #print("Text: ", text, file=sys.stderr)
-        audio = generate(text=text, voice=voices[1], model="eleven_multilingual_v2")
-        talking_gesture()
-        #print("Generate Audio: END")
-        # gesture_thread.start()
+        # Verbose output
+        if verbose:
+            print("-----------------")
+            print("Generate Audio: START")
+            start = time.time()
+        
+        if multi_lingual:
+            audio = generate(text=text, voice=multi_voices[1], model="eleven_multilingual_v2")
+        else:
+            audio = generate(text=text, voice=eng_voices[voice_select])
+        
+        # Verbose output
+        if verbose:
+            end = time.time()
+            print(f"Time taken: {end-start:.2f} s", file=sys.stderr)
+            print("Generate Audio: END\n")
+        # Create gestures if the robot is connected
+        if IP is not None:
+            gesture_thread.start()
         play(audio)
 
-# run object detection in a new terminal
-#objectDetectionSub()
-#time.sleep(7)
+def getGestures(IP, text):
 
-# we need some space
-print('\n\n\n')
-
-"""introductions = [
-    lambda x: f"Hi, my name is {x}! What's your name?",
-    lambda x: f"Hello! My name is {x}. May I ask what you are called?",
-    lambda x: f"Good day! I am {x}. Would you tell me your name?",
-    lambda x: f"Hi! I'm {x}, nice to meet you. What is your name?",
-    lambda x: f"Welcome! I am {x}. Would you share your name with me?",
-    lambda x: f"Hello! I'm {x}. Will you tell me what you are called?",
-    lambda x: f"Hi, my name is {x}! May I ask for your name?",
-    lambda x: f"Hi, I am {x}! What should I call you?",
-    lambda x: f"Pleased to meet you! I am {x}. What's your name?",
-    lambda x: f"Hello! My name is {x}. What's your name, my friend?",
-    lambda x: f"Hi, I'm {x}! Would you tell me your name?",
-    lambda x: f"Greetings! My name is {x}. What are you called?",
-    lambda x: f"Hi, my name is {x}! Would you share your name with me?",
-    lambda x: f"Good day, I am {x}! May I have the pleasure of knowing your name?",
-    lambda x: f"Hello, I'm {x}! Can you tell me what you are called?"
-]
-
-# Some phrases to repeat the name
-repeat_name = [
-    "Sorry, I didn't catch your name. Could you tell it to me again?",
-    "My mistake, I missed your name. Could you repeat it for me, please?",
-    "Excuse me, but I didn't quite catch your name. Would you mind sharing it again?",
-    "Oops, I didn't understand your reply. Could you tell me your name again, please?",
-    "It seems I misunderstood your name. Could you say it one more time, please?",
-    "Excuse me, but I didn't get your name right. What was it again?",
-    "Sorry, but I didn't catch your name. Can you tell me again, please?",
-    "Sorry about that - I didn't quite get your name. Could you repeat it, please?",
-    "My apologies, but I didn't hear your name clearly. What was your name again?",
-    "I must have misunderstood your response. Could you please tell me your name again?",
-    "It appears I didn't quite get your name right. Would you mind telling it to me again?",
-    "I apologize for the confusion. Could you please share your name again?",
-    "I'm sorry, I didn't quite catch your name. Could you say it again for me, please?",
-    "Excuse me, but I didn't understand your name. Could you kindly repeat it?",
-    "Excuse me, but I missed your name. Can you let me know what it was again?"
-]
-"""
-introductions =  [
-lambda x: f"Hej, mit navn er {x}! Hvad hedder du?",
-lambda x: f"Hej! Mit navn er {x}. Må jeg spørge, hvad du hedder?",
-lambda x: f"God dag! Jeg er {x}. Vil du fortælle mig dit navn?",
-lambda x: f"Hej! Jeg er {x}, rart at møde dig. Hvad hedder du?",
-lambda x: f"Velkommen! Jeg er {x}. Vil du dele dit navn med mig?",
-lambda x: f"Hej! Jeg er {x}. Vil du fortælle mig, hvad du hedder?",
-lambda x: f"Hej, mit navn er {x}! Må jeg bede om dit navn?",
-lambda x: f"Hej, jeg er {x}! Hvad skal jeg kalde dig?",
-lambda x: f"Dejligt at møde dig! Jeg er {x}. Hvad hedder du?",
-lambda x: f"Hej! Mit navn er {x}. Hvad hedder du, min ven?",
-lambda x: f"Hej, jeg er {x}! Vil du fortælle mig dit navn?",
-lambda x: f"Velkommen! Mit navn er {x}. Hvad kalder du dig?",
-lambda x: f"Hej, mit navn er {x}! Vil du dele dit navn med mig?",
-lambda x: f"God dag, jeg er {x}! Må jeg have fornøjelsen af at kende dit navn?",
-lambda x: f"Hej, jeg er {x}! Kan du fortælle mig, hvad du hedder?"
-]
-
-# Some phrases to repeat the name
-repeat_name = [
-"Undskyld, jeg fangede ikke dit navn. Kunne du sige det til mig igen?",
-"Mit fejl, jeg missede dit navn. Kunne du gentage det for mig, tak?",
-"Undskyld, men jeg fangede ikke helt dit navn. Ville du have noget imod at dele det igen?",
-"Ups, jeg forstod ikke dit svar. Kunne du sige dit navn igen, tak?",
-"Det ser ud til, at jeg misforstod dit navn. Kunne du sige det en gang til, tak?",
-"Undskyld, men jeg forstod ikke dit navn. Hvad var det igen?",
-"Undskyld, men jeg fangede ikke dit navn. Kan du sige det igen, tak?",
-"Undskyld for det - jeg fangede ikke helt dit navn. Kunne du gentage det, tak?",
-"Undskyld, men jeg hørte ikke dit navn tydeligt. Hvad var dit navn igen?",
-"Jeg må have misforstået dit svar. Kunne du venligst sige dit navn igen?",
-"Det ser ud til, at jeg ikke helt fik dit navn rigtigt. Ville du fortælle det til mig igen?",
-"Undskyld for forvirringen. Kunne du venligst dele dit navn igen?",
-"Undskyld, jeg fangede ikke helt dit navn. Kunne du sige det igen, tak?",
-"Undskyld, men jeg forstod ikke dit navn. Kunne du venligst gentage det?",
-"Undskyld, men jeg missede dit navn. Kan du fortælle mig, hvad det var igen?"
-]
+    prompt = [
+        {
+        "role": "system",
+        "content": "Given a paragraph of text, annotate every 10 words in that paragraph with the most appropriate tag. You should always give a tag no matter what. The tags are to be placed in square brackets. \n\nFollowing tags are available:\n0. Happy\n1. Sad\n2. Affirmative\n3. Unfamiliar\n4. Thinking\n5. Explain\n\nIt should be on the form:\n\nHi, [5] have you heard about the recent news? They are [1] quite horrific to say the [1] least."
+        },
+        {
+        "role": "user",
+        "content": "I am so very sad today. My parents are getting a divorce and I am unsure how to react to it."
+        },
+        {
+        "role": "assistant",
+        "content": "I am [5] so very sad [1] today. My parents [2] are getting a divorce [1] and I am unsure how to [5] react to it."
+        },
+        {
+        "role": "user",
+        "content": "I just graduated my Masters today! What a thrill it was."
+        },
+        {
+        "role": "assistant",
+        "content": "I just graduated my Masters [2] today! What a [0] thrill it [2] was."
+        },
+        {
+        "role": "user",
+        "content": "I don't understand what you mean. Let me just think about it."
+        },
+        {
+        "role": "assistant",
+        "content": "I don't understand what you [1] mean. Let me just [4] think about [4] it."
+        },
+        {
+        "role": "user",
+        "content": {text}
+        }
+    ]
+    if verbose:
+        print("Get Gestures: START")
+        start = time.time()
+    response = getResponse(prompt, temperature=1, max_tokens=256, top_p=1, openaiClient=openaiClient, frequency_penalty=0, presence_penalty=0)
+    if verbose:
+        end = time.time()
+        print("Time taken: ", end-start, file=sys.stderr)
+        print("Get Gestures: END\n")
+    gesture_numbers = [int(gesture) for gesture in re.findall(r'\[(\d+)\]', response)]
+    split_sentences = re.split(r'\[\d+\]', response)
+    return split_sentences, gesture_numbers
 
 def getConfig(language_code = "en-US"):         
 
@@ -219,19 +175,62 @@ def getConfig(language_code = "en-US"):
 
     return RATE, CHUNK, client, streaming_config
 
+def getResponse(prompt, temperature, max_tokens, top_p, openaiClient, frequency_penalty=1.75, presence_penalty=1.75, model="gpt-4-1106-preview"):
 
-def getName(temperature, openaiClient, language='en-US', robot_name='Pepper', ): 
+    response = openaiClient.chat.completions.create(
+                model=model,
+                messages=prompt,
+                temperature=temperature,
+                max_tokens=max_tokens,
+                top_p=top_p,
+                frequency_penalty=frequency_penalty,
+                presence_penalty=presence_penalty,
+            )
+    return response.choices[0].message.content
 
+def changeVoice(prompt, voice):
+
+    voice_prompt = [
+                    {
+                    "role": "user",
+                    "content": f"You have the following voices to chose from. They have a number and a description: {voice_descriptions}. Below you will get a sentence said by a human. Your current voice is {voice}. If the human explicitly requests for you to change your voice, write the number that best matches the request: (number), otherwise write: -nothing. Note that it is only if the human asks about another voice, not if the human simply mentions the name of the voice.\\n\\n',\n\n{prompt}\n"
+                    },
+                    {
+                    "role": "assistant",
+                    "content": "2"
+                    }
+                    ]
+    response = getResponse(voice_prompt, temperature=1, max_tokens=256, top_p=1, openaiClient=openaiClient, frequency_penalty=0, presence_penalty=0)
+    try:
+        voice = int(response)
+        global voice_select
+        if voice_select != voice:
+            voice_select = voice
+            if verbose:
+                print("Voice changed to: ", voice_select)
+            return 1
+        else:
+            if verbose:
+                print("Voice not changed")
+            return 0
+    except:
+        if verbose:
+            print("Voice not changed")
+        return 0
+
+def getName(temperature, openaiClient, IP, language='en-US', robot_name='Pepper', multi_lingual=True): 
     # Some introductory phrases
-    introduction = random.choice(introductions)(robot_name)
+    prompt = [{"role": "system", "content": f"You are a robot called Pepper, and you are engaging in a conversation. Briefly introduce yourself in one or two sentences and ask for the other person's name in a fun and engaging way."}]
+    introduction = getResponse(prompt, temperature=temperature, max_tokens=255, top_p=1, openaiClient=openaiClient)
+    elevenLabsSay(introduction, IP, multi_lingual=multi_lingual)
     print('Pepper: ' + introduction)
-    elevenLabsSay(introduction)
-    # os.system('say "%s"' % introduction)
+    if verbose:
+        print("-----------------")
 
     # get the config for the google speech api
     RATE, CHUNK, client, streaming_config = getConfig(language_code=language)
 
-    # loop until the user says his name
+    # loop until the user says their name
     while True:
         with MicrophoneStream(RATE, CHUNK) as stream:
             audio_generator = stream.generator()
@@ -241,94 +240,33 @@ def getName(temperature, openaiClient, language='en-US', robot_name='Pepper', ):
             )
             #listen("Start")
             human_response = client.streaming_recognize(streaming_config, requests)
-            human_response = listen_print_loop('Human', human_response)
-            system_message  = 'What did the human say his name was in the following sentence? \n If the human did not specify write: -nothing, otherwise write ONLY the name of the human.\n\n'            
+            human_response = listen_print_loop('Human', human_response, verbose=verbose)
+            system_message  = 'What did the human say his name was in the following sentence? \n If the human did not specify write: -nothing, otherwise write ONLY the name of the human.\n\n'
+
+            prompt = [{"role": "system","content": system_message}, {"role": "user", "content": human_response}]          
             
-            response = openaiClient.chat.completions.create(
-                model="gpt-3.5-turbo-16k-0613",
-                messages=[
-                        {       
-                        "role": "system",
-                        "content": system_message
-                        },
-                        {
-                        "role": "user",
-                        "content": human_response
-                        }
-                    ],
-                temperature=temperature,
-                max_tokens=10,
-                top_p=top_p,
-                frequency_penalty=1.5,
-                presence_penalty=1,
-            )
-            pepper_response = response.choices[0].message.content
+            pepper_response = getResponse(prompt, temperature=temperature, max_tokens=10, top_p=top_p, \
+                                          openaiClient=openaiClient, frequency_penalty=1.5, presence_penalty=1, \
+                                          model="gpt-3.5-turbo-16k-0613")
 
             if '-nothing' in pepper_response.lower():
-                pepper_response = random.choice(repeat_name)
-                pepper_response = pepper_response.replace('\n\n', '')
-                elevenLabsSay(pepper_response)
+                prompt = [{"role": "system", "content": f"You missed the other person's name, and you should ask again. Be kind and understanding."}]
+                pepper_response = getResponse(prompt, temperature=temperature, max_tokens=10, top_p=top_p, openaiClient=openaiClient)
+                elevenLabsSay(pepper_response, IP, multi_lingual=multi_lingual)
                 print('Pepper: ' + pepper_response)
-                
-                # os.system('say "%s"' % pepper_response)
-
+                if verbose:
+                    print("-----------------")
             else: 
                 name = pepper_response
-                pepper_response = 'Så du hedder ' + pepper_response
-                elevenLabsSay(pepper_response)
+                prompt = [{"role": "system", "content": f"Great! So the human has introduced themselves as {name}. Now acknowledge it."}]
+                pepper_response = getResponse(prompt, temperature=temperature, max_tokens=255, top_p=top_p, openaiClient=openaiClient)
+                elevenLabsSay(pepper_response, IP, multi_lingual=multi_lingual)
                 print('Pepper: ' + pepper_response)
-                
-                # os.system('say "%s"' % pepper_response)
+                if verbose:
+                    print("-----------------")
                 return name, pepper_response
-            
-def changeVoice(prompt, voice):
-    response = openaiClient.chat.completions.create(
-                        model="gpt-4",
-                        messages=[
-                            {
-                            "role": "user",
-                            "content": f"You have the following voices to chose from. They have a number and a description: {voice_descriptions}. Below you will get a sentence said by a human. Your current voice is {voice}. If the human explicitly requests for you to change your voice, write the number that best matches the request: (number), otherwise write: -nothing. Note that it is only if the human asks about another voice, not if the human simply mentions the name of the voice.\\n\\n',\n\n{prompt}\n"
-                            },
-                            {
-                            "role": "assistant",
-                            "content": "2"
-                            }
-                        ],
-                        temperature=1,
-                        max_tokens=256,
-                        top_p=1,
-                        frequency_penalty=0,
-                        presence_penalty=0
-                        )
-    response = response.choices[0].message.content
-    try:
-        voice = int(response)
-        global voice_select
-        if voice_select != voice:
-            voice_select = voice
-            print(voice_select)
-            return 1
-        else:
-            return 0
-    except:
-        return 0
-        
 
-def getResponse(prompt, temperature, max_tokens, top_p, openaiClient, model="gpt-4-1106-preview"):
-
-    response = openaiClient.chat.completions.create(
-                model=model,
-                messages=prompt,
-                temperature=temperature,
-                max_tokens=max_tokens,
-                top_p=top_p,
-                frequency_penalty=1.75,
-                presence_penalty=1.75,
-            )
-    return response.choices[0].message.content
-
-def startConversation(prompt, speaker, temperature, max_tokens, top_p, openaiClient, language='en-US'):
-
+def startConversation(prompt, speaker, temperature, max_tokens, top_p, openaiClient, IP, language='en-US', multi_lingual=True):
     # get the config for the google speech api
     RATE, CHUNK, client, streaming_config = getConfig(language_code=language)
     # start the conversation loop 
@@ -343,7 +281,7 @@ def startConversation(prompt, speaker, temperature, max_tokens, top_p, openaiCli
             human_response = client.streaming_recognize(streaming_config, requests)
             
             #print('Human: ')
-            human_response = listen_print_loop(speaker, human_response)
+            human_response = listen_print_loop(speaker, human_response, verbose=verbose)
             voice_changed = changeVoice('Human:' + human_response, voice=voice_select)
 
             # fetch the string from objects.txt 
@@ -353,12 +291,16 @@ def startConversation(prompt, speaker, temperature, max_tokens, top_p, openaiCli
             prompt += [{"role": "user", "content": human_response + '\n\n' + objects}]
 
             if voice_changed:
-                response = "Certainly! I will change my voice. Is it better now?"
+                # response = "Certainly! I will change my voice. Is it better now?"
+                voice_prompt = [{"role": "system", "content": "You have changed your voice. Showcase the new voice and ask if the human likes it. Everything you do say will be in {language}."}]
+                response = getResponse(voice_prompt, temperature=temperature, max_tokens=max_tokens, top_p=top_p, openaiClient=openaiClient)
             else: 
                 response = getResponse(prompt, temperature=temperature, max_tokens=max_tokens, top_p = top_p, openaiClient=openaiClient)
 
-            elevenLabsSay(response)
+            elevenLabsSay(response, IP, multi_lingual=multi_lingual)
             print('Pepper: ' + response)
+            if verbose:
+                print("-----------------")
 
             prompt += [{"role": "assistant", "content": response}]
     return 0
@@ -374,6 +316,7 @@ def getParser():
 
     # write an argparser for all variables 
     parser.add_argument('--name', type=str, default='Human', help='name of the person you are talking to')
+    parser.add_argument('--ip', type=str, default=None, help='IP address of the robot. (default: %(default)s)')
     parser.add_argument('--prompt', type=str, default=prompt, help='prompt to start the conversation')
     parser.add_argument('--temperature', type=float, default=0.7, help='temperature for the GPT-3 model, float between 0 and 2')
     parser.add_argument('--max_tokens', type=int, default=300, help='max tokens for the GPT-3 model')
@@ -381,9 +324,11 @@ def getParser():
     parser.add_argument('--language', type=str, default='da-DK', help='language for the GPT-3 model: en-US, en-GB, da-DK etc. see https://cloud.google.com/speech-to-text/docs/speech-to-text-supported-languages for more.')
     parser.add_argument('--final_read', type=bool, default=False, help='if true the final text will be read out loud by the robot')
     parser.add_argument('--init_voice', type=int, default=2, help='init voice for the robot, 0. Robot, 1. Rachel, 2. Ryan Kurk, 3. Pheobe, 4. Dave, 5. Mimi')
+    parser.add_argument('--od', type=bool, default=False, help='if true the object detection will be run')
+    parser.add_argument('-v', '--verbose', action='store_true', help='increase output verbosity')
+    parser.add_argument('-ml', '--multi_lingual', action='store_true', help='use the multi-lingual model')
     # parse the arguments
     args = parser.parse_args()
-
     # get the variables from the arguments
     name = args.name
     prompt = args.prompt
@@ -392,32 +337,60 @@ def getParser():
     top_p = args.top_p
     language = args.language
     final_read = args.final_read
+
     global voice_select
     voice_select = args.init_voice
-    return name, prompt, temperature, max_tokens, top_p, language, final_read
+    global verbose
+    verbose = args.verbose
+
+    multi_lingual = args.multi_lingual
+
+    if args.od:
+        if verbose:
+            print("Running object detection")
+        # Run the objectMedia.py script
+        subprocess.run(['python3', 'models/objectMedia.py'], stdout=subprocess.DEVNULL, stderr=subprocess.STDOUT)
+
+    IP = args.ip
+
+    return IP, name, prompt, temperature, max_tokens, top_p, language, final_read, multi_lingual
 
 if __name__ == "__main__":
     # get the arguments
-    name, prompt, temperature, max_tokens, top_p, language, final_read = getParser()
-
-    if final_read:
-        # read the final_read.txt
-        with open('final_read.txt', 'r') as file:
-            final_read = file.read()
-        elevenLabsSay(final_read)
-
+    IP, name, prompt, temperature, max_tokens, top_p, language, final_read, multi_lingual = getParser()
+    global voice_descriptions
+    
+    if IP is not None:
+        IP = f"tcp://{IP}:9559"
+        nao_init(IP)
+        nao_facetrack(IP)
+        voice_descriptions = """
+        \n0: pepper the robot voice.
+        \n1: Female, very soothing, friendly and sophisticated.
+        \n2: Male, bright, young, expressive narrative voice. It could soothe, excite, inform, and entertain, all at the same time.
+        \n3: Female, young, playful and energetic voice, with a hint of assertiveness.
+        \n4: Male, middle-aged, deep and gruff voice, raw and intimidating. 
+        \n5: Female, young, light, delicate and sweet. It exudes innocence and charm. 
+        \n\n
+        """
     else:
-        nao_facetrack()
-        # objectDetectionSub()
-        openaiClient = openai.OpenAI(api_key=api_key)
+        voice_descriptions = """
+        \n1: Female, very soothing, friendly and sophisticated.
+        \n2: Male, bright, young, expressive narrative voice. It could soothe, excite, inform, and entertain, all at the same time.
+        \n3: Female, young, playful and energetic voice, with a hint of assertiveness.
+        \n4: Male, middle-aged, deep and gruff voice, raw and intimidating. 
+        \n5: Female, young, light, delicate and sweet. It exudes innocence and charm. 
+        \n\n
+        """
 
-        # get the name of the human if not specified using argument parser
-        if name == 'Human':
-            name, pepper_response = getName(temperature=temperature, openaiClient=openaiClient, language=language)
-            prompt = [{"role": "system", "content": prompt}, {"role": "assistant", "content": pepper_response}]
-        else:
-            prompt = [{"role": "system", "content": prompt}, {"role": "assistant", "content": ""}]
+    openaiClient = openai.OpenAI(api_key=api_key)
+    # get the name of the human if not specified using argument parser
+    if name == 'Human':
+        name, pepper_response = getName(temperature=temperature, openaiClient=openaiClient, language=language, IP=IP, multi_lingual=multi_lingual)
+        prompt = [{"role": "system", "content": prompt}, {"role": "assistant", "content": pepper_response}]
+    else:
+        prompt = [{"role": "system", "content": prompt}, {"role": "assistant", "content": ""}]
 
-        # start the conversation
-        startConversation(prompt, name, temperature=temperature, max_tokens=max_tokens, top_p=top_p, language=language, openaiClient=openaiClient)
+    # start the conversation
+    startConversation(prompt, name, temperature=temperature, max_tokens=max_tokens, top_p=top_p, language=language, openaiClient=openaiClient, IP=IP, multi_lingual=multi_lingual)
 

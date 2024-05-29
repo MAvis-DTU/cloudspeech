@@ -1,11 +1,11 @@
 # Folders
 pythonsdk/
 __pycache__/
+credentials/
+robot/__pycache__/
 
-# Credentials
-chatkey.json
-openaiKey.text
+
 
 # Object Detection files
-chatbot_detection_labels.rtf
-efficientdet_lite0.tflite
+models/chatbot_detection_labels.rtf
+models/efficientdet_lite0.tflite

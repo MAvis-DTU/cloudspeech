@@ -25,8 +25,8 @@ Example usage:
 
 # [START speech_transcribe_streaming_mic]
 from __future__ import division
+import time
 
-import re
 import sys
 from google.cloud import speech
 import pyaudio
@@ -101,7 +101,7 @@ class MicrophoneStream(object):
             yield b"".join(data)
 
 
-def listen_print_loop(speaker, responses, socket=None, is_setup=False, bot_name=None):
+def listen_print_loop(speaker, responses, socket=None, is_setup=False, bot_name=None, verbose=False):
     """Iterates through server responses and prints them.
     The responses passed is a generator that will block until a response
     is provided by the server.
@@ -113,6 +113,10 @@ def listen_print_loop(speaker, responses, socket=None, is_setup=False, bot_name=
     the next result to overwrite it, until the response is a final one. For the
     final one, print a newline to preserve the finalized transcription.
     """
+    if verbose:
+        print("-----------------")
+        print("Listening: START")
+        start = time.time()
     num_chars_printed = 0
     for response in responses:
         if not response.results:
@@ -133,8 +137,7 @@ def listen_print_loop(speaker, responses, socket=None, is_setup=False, bot_name=
         #
         # If the previous result was longer than this one, we need to print
         # some extra spaces to overwrite the previous result
-        overwrite_chars = " " * (num_chars_printed - len(transcript))
-
+        overwrite_chars = " " * (num_chars_printed - len(transcript))            
         if not result.is_final:
             sys.stdout.write(transcript + overwrite_chars + "\r")
             sys.stdout.flush()
@@ -146,10 +149,15 @@ def listen_print_loop(speaker, responses, socket=None, is_setup=False, bot_name=
     
         else:
             print(speaker+': '+ transcript + overwrite_chars)
+            if verbose:
+                end = time.time()
+                print(f"Time taken: {end-start:.2f} s")
+                print("Listening: END\n")
+                print("-----------------")
             return transcript
-            # Exit recognition if any of the transcribed phrases could be
-            # one of our keywords.
-            if re.search(r"\b(exit|quit)\b", transcript, re.I):
-                print("Exiting..")
-                break
-            break
+            # # Exit recognition if any of the transcribed phrases could be
+            # # one of our keywords.
+            # if re.search(r"\b(exit|quit)\b", transcript, re.I):
+            #     print("Exiting..")
+            #     break
+            # break

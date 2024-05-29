@@ -4,9 +4,11 @@
 """Example: Modify Face Tracking policy on the robot."""
 
 import qi
+import sys
 
+IP = raw_input() 
 session = qi.Session()
-session.connect("tcp://192.168.1.110:9559")
+session.connect(IP)
 
 posture = session.service("ALRobotPosture")
 
@@ -28,5 +30,4 @@ tracker_service.registerTarget(targetName, faceWidth)
 
 # Then, start tracker.
 tracker_service.track(targetName)
-
 
