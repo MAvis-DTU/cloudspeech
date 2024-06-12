@@ -146,7 +146,6 @@ def listen_print_loop(speaker, responses, socket=None, is_setup=False, bot_name=
             # print(transcript, file=sys.stderr)
             if socket is not None:
                 socket.emit("new message", (transcript, "person", bot_name, None, is_setup, False))
-    
         else:
             print(speaker+': '+ transcript + overwrite_chars)
             if verbose:

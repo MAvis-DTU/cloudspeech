@@ -150,7 +150,7 @@ def getGestures(IP, text):
     response = getResponse(prompt, temperature=1, max_tokens=256, top_p=1, openaiClient=openaiClient, frequency_penalty=0, presence_penalty=0)
     if verbose:
         end = time.time()
-        print("Time taken: ", end-start, file=sys.stderr)
+        print(f"Time taken: {end-start:.2f} s", file=sys.stderr)
         print("Get Gestures: END\n")
     gesture_numbers = [int(gesture) for gesture in re.findall(r'\[(\d+)\]', response)]
     split_sentences = re.split(r'\[\d+\]', response)
@@ -249,7 +249,7 @@ def getName(main_prompt, temperature, openaiClient, IP, language='en-US', robot_
                                           openaiClient=openaiClient, frequency_penalty=1.5, presence_penalty=1, \
                                           model="gpt-3.5-turbo-16k-0613")
 
-            if '-nothing' in pepper_response.lower():
+            if '-nothing' in pepper_response.lower() or '-ingenting' in pepper_response.lower():
                 prompt = [{"role": "system", "content": [{"type": "text", "text": main_prompt + '\n\n' + f"You missed the other person's name, and you should ask again. Be kind and understanding."}]}]
                 pepper_response = getResponse(prompt, temperature=temperature, max_tokens=10, top_p=top_p, openaiClient=openaiClient)
                 elevenLabsSay(pepper_response, IP, multi_lingual=multi_lingual)
@@ -324,7 +324,7 @@ def getParser():
     parser.add_argument('--language', type=str, default='da-DK', help='language for the GPT-3 model: en-US, en-GB, da-DK etc. see https://cloud.google.com/speech-to-text/docs/speech-to-text-supported-languages for more.')
     parser.add_argument('--final_read', type=bool, default=False, help='if true the final text will be read out loud by the robot')
     parser.add_argument('--init_voice', type=int, default=2, help='init voice for the robot, 0. Robot, 1. Rachel, 2. Ryan Kurk, 3. Pheobe, 4. Dave, 5. Mimi')
-    parser.add_argument('--od', type=bool, default=False, help='if true the object detection will be run')
+    parser.add_argument('-od', '--object_detection', action='store_true', help='if true the object detection will be run')
     parser.add_argument('-v', '--verbose', action='store_true', help='increase output verbosity')
     parser.add_argument('-ml', '--multi_lingual', action='store_true', help='use the multi-lingual model')
     # parse the arguments
@@ -345,7 +345,7 @@ def getParser():
 
     multi_lingual = args.multi_lingual
 
-    if args.od:
+    if args.object_detection:
         if verbose:
             print("Running object detection")
         # Run the objectMedia.py script
