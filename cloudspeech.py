@@ -80,7 +80,7 @@ set_api_key("cb4a60d9eaf1ad9514b055a3be1fc3b6")
 
 def elevenLabsSay(text, IP, multi_lingual=False):
     if IP is not None:
-        split_sentences, gesture_numbers = getGestures(text, IP)
+        split_sentences, gesture_numbers = getGestures(IP, text)
         gesture_thread = threading.Thread(target=nao_gesture, args=(IP, split_sentences, gesture_numbers))
 
     if voice_select == 0 and IP is not None:
@@ -117,31 +117,31 @@ def getGestures(IP, text):
         },
         {
         "role": "user",
-        "content": "I am so very sad today. My parents are getting a divorce and I am unsure how to react to it."
+        "content": [{"type": "text", "text": "I am so very sad today. My parents are getting a divorce and I am unsure how to react to it."}]
         },
         {
         "role": "assistant",
-        "content": "I am [5] so very sad [1] today. My parents [2] are getting a divorce [1] and I am unsure how to [5] react to it."
+        "content": [{"type": "text", "text": "I am [5] so very sad [1] today. My parents [2] are getting a divorce [1] and I am unsure how to [5] react to it."}]
         },
         {
         "role": "user",
-        "content": "I just graduated my Masters today! What a thrill it was."
+        "content": [{"type": "text", "text": "I just graduated my Masters today! What a thrill it was."}]
         },
         {
         "role": "assistant",
-        "content": "I just graduated my Masters [2] today! What a [0] thrill it [2] was."
+        "content": [{"type": "text", "text": "I just graduated my Masters [2] today! What a [0] thrill it [2] was."}]
         },
         {
         "role": "user",
-        "content": "I don't understand what you mean. Let me just think about it."
+        "content": [{"type": "text", "text": "I don't understand what you mean. Let me just think about it."}]
         },
         {
         "role": "assistant",
-        "content": "I don't understand what you [1] mean. Let me just [4] think about [4] it."
+        "content": [{"type": "text", "text": "I don't understand what you [1] mean. Let me just [4] think about [4] it."}]
         },
         {
         "role": "user",
-        "content": {text}
+        "content": [{"type": "text", "text": text}]
         }
     ]
     if verbose:
@@ -218,9 +218,9 @@ def changeVoice(prompt, voice):
             print("Voice not changed")
         return 0
 
-def getName(temperature, openaiClient, IP, language='en-US', robot_name='Pepper', multi_lingual=True): 
+def getName(main_prompt, temperature, openaiClient, IP, language='en-US', robot_name='Pepper', multi_lingual=True): 
     # Some introductory phrases
-    prompt = [{"role": "system", "content": f"You are a robot called Pepper, and you are engaging in a conversation. Briefly introduce yourself in one or two sentences and ask for the other person's name in a fun and engaging way."}]
+    prompt = [{"role": "system", "content": [{"type": "text", "text": main_prompt + '\n\n' + f"You are a robot called Pepper, and you are engaging in a conversation. Briefly introduce yourself in one or two sentences and ask for the other person's name in a fun and engaging way."}]}]
     introduction = getResponse(prompt, temperature=temperature, max_tokens=255, top_p=1, openaiClient=openaiClient)
     elevenLabsSay(introduction, IP, multi_lingual=multi_lingual)
     print('Pepper: ' + introduction)
@@ -243,14 +243,14 @@ def getName(temperature, openaiClient, IP, language='en-US', robot_name='Pepper'
             human_response = listen_print_loop('Human', human_response, verbose=verbose)
             system_message  = 'What did the human say his name was in the following sentence? \n If the human did not specify write: -nothing, otherwise write ONLY the name of the human.\n\n'
 
-            prompt = [{"role": "system","content": system_message}, {"role": "user", "content": human_response}]          
+            prompt = [{"role": "system", "content": [{"type": "text", "text": system_message}]}, {"role": "user", "content": [{"type": "text", "text": human_response}]}]          
             
             pepper_response = getResponse(prompt, temperature=temperature, max_tokens=10, top_p=top_p, \
                                           openaiClient=openaiClient, frequency_penalty=1.5, presence_penalty=1, \
                                           model="gpt-3.5-turbo-16k-0613")
 
             if '-nothing' in pepper_response.lower():
-                prompt = [{"role": "system", "content": f"You missed the other person's name, and you should ask again. Be kind and understanding."}]
+                prompt = [{"role": "system", "content": [{"type": "text", "text": main_prompt + '\n\n' + f"You missed the other person's name, and you should ask again. Be kind and understanding."}]}]
                 pepper_response = getResponse(prompt, temperature=temperature, max_tokens=10, top_p=top_p, openaiClient=openaiClient)
                 elevenLabsSay(pepper_response, IP, multi_lingual=multi_lingual)
                 print('Pepper: ' + pepper_response)
@@ -258,7 +258,7 @@ def getName(temperature, openaiClient, IP, language='en-US', robot_name='Pepper'
                     print("-----------------")
             else: 
                 name = pepper_response
-                prompt = [{"role": "system", "content": f"Great! So the human has introduced themselves as {name}. Now acknowledge it."}]
+                prompt = [{"role": "system", "content": [{"type": "text", "text": main_prompt + '\n\n' + f"Great! So the human has introduced themselves as {name}. Now acknowledge it."}]}]
                 pepper_response = getResponse(prompt, temperature=temperature, max_tokens=255, top_p=top_p, openaiClient=openaiClient)
                 elevenLabsSay(pepper_response, IP, multi_lingual=multi_lingual)
                 print('Pepper: ' + pepper_response)
@@ -288,7 +288,7 @@ def startConversation(prompt, speaker, temperature, max_tokens, top_p, openaiCli
             with open('objects.txt', 'r') as file:
                 objects = file.read()
 
-            prompt += [{"role": "user", "content": human_response + '\n\n' + objects}]
+            prompt += [{"role": "user", "content": [{"type": "text", "text": human_response + '\n\n' + objects}]}]
 
             if voice_changed:
                 # response = "Certainly! I will change my voice. Is it better now?"
@@ -359,7 +359,6 @@ if __name__ == "__main__":
     # get the arguments
     IP, name, prompt, temperature, max_tokens, top_p, language, final_read, multi_lingual = getParser()
     global voice_descriptions
-    
     if IP is not None:
         IP = f"tcp://{IP}:9559"
         nao_init(IP)
@@ -386,10 +385,10 @@ if __name__ == "__main__":
     openaiClient = openai.OpenAI(api_key=api_key)
     # get the name of the human if not specified using argument parser
     if name == 'Human':
-        name, pepper_response = getName(temperature=temperature, openaiClient=openaiClient, language=language, IP=IP, multi_lingual=multi_lingual)
-        prompt = [{"role": "system", "content": prompt}, {"role": "assistant", "content": pepper_response}]
+        name, pepper_response = getName(main_prompt=prompt, temperature=temperature, openaiClient=openaiClient, language=language, IP=IP, multi_lingual=multi_lingual)
+        prompt = [{"role": "system", "content": prompt}, {"role": "assistant", "content": [{"type": "text", "text": pepper_response}]}]
     else:
-        prompt = [{"role": "system", "content": prompt}, {"role": "assistant", "content": ""}]
+        prompt = [{"role": "system", "content": prompt}, {"role": "assistant", "content": [{"type": "text", "text": ""}]}]
 
     # start the conversation
     startConversation(prompt, name, temperature=temperature, max_tokens=max_tokens, top_p=top_p, language=language, openaiClient=openaiClient, IP=IP, multi_lingual=multi_lingual)

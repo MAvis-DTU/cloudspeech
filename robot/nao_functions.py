@@ -15,7 +15,7 @@ def nao_gesture(IP, split_sentences, gesture_number):
     """
     Non-blocking subprocess call to run in parallel with the main program (elevenlabs).
     """
-    p = subprocess.Popen(['python2.7', 'robot/nao_gesture.py'], stdout=subprocess.PIPE, stdin=subprocess.PIPE, stderr=subprocess.STDOUT)    
+    p = subprocess.Popen(['python2', 'robot/nao_gesture.py'], stdout=subprocess.PIPE, stdin=subprocess.PIPE, stderr=subprocess.STDOUT)    
     p.communicate(input=bytes(IP + '\n' + str(split_sentences) + '\n' + str(gesture_number), encoding="utf-8"))
 
 
