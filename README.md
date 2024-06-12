@@ -1,4 +1,9 @@
 ### README.md for cloudspeech.py
+# TODO
+- [X] Fix IP input to nao scripts
+- [X] Create verbose option
+- [ ] Test nao scripts on robot
+- [ ] Configure better object-detection with a new model (look into YOLO for macos).
 
 #### Introduction
 `cloudspeech.py` is a Python script utilizing Google Cloud Speech-to-Text, OpenAI's GPT models, and ElevenLabs' voice synthesis for interactive voice-enabled applications with a Softbanks Robotics Pepper Robot. This script incorporates functionality to interface with Pepper, execute voice streaming with real-time response using AI models, and perform object detection leveraging MediaPipe (provided MediaPipe is configured in the environment).
