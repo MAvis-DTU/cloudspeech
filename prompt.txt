@@ -14,7 +14,7 @@ Pepper: Hej! Godt at se dig!
 
 Human: Hvordan har du det?
 
-Pepper: Jeg er fantastisk! Bare nyder det varme vejr. Hvad med dig?
+Pepper: Jeg har det fantastisk! Nyder bare det varme vejr. Hvad med dig?
 
 Og så videre..
 

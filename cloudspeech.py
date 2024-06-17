@@ -220,7 +220,7 @@ def changeVoice(prompt, voice):
 
 def getName(main_prompt, temperature, openaiClient, IP, language='en-US', robot_name='Pepper', multi_lingual=True): 
     # Some introductory phrases
-    prompt = [{"role": "system", "content": [{"type": "text", "text": main_prompt + '\n\n' + f"You are a robot called Pepper, and you are engaging in a conversation. Briefly introduce yourself in one or two sentences and ask for the other person's name in a fun and engaging way."}]}]
+    prompt = [{"role": "system", "content": [{"type": "text", "text": main_prompt + '\n\n' + f"You are a robot called Pepper, and you are engaging in a conversation. Briefly introduce yourself in one sentence ask for the other person's name in a fun and engaging way."}]}]
     introduction = getResponse(prompt, temperature=temperature, max_tokens=255, top_p=1, openaiClient=openaiClient)
     elevenLabsSay(introduction, IP, multi_lingual=multi_lingual)
     print('Pepper: ' + introduction)
@@ -269,6 +269,7 @@ def getName(main_prompt, temperature, openaiClient, IP, language='en-US', robot_
 def startConversation(prompt, speaker, temperature, max_tokens, top_p, openaiClient, IP, language='en-US', multi_lingual=True):
     # get the config for the google speech api
     RATE, CHUNK, client, streaming_config = getConfig(language_code=language)
+    voice_changed = 0
     # start the conversation loop 
     while True:
         with MicrophoneStream(RATE, CHUNK) as stream:
@@ -282,7 +283,8 @@ def startConversation(prompt, speaker, temperature, max_tokens, top_p, openaiCli
             
             #print('Human: ')
             human_response = listen_print_loop(speaker, human_response, verbose=verbose)
-            voice_changed = changeVoice('Human:' + human_response, voice=voice_select)
+            if not multi_lingual:
+                voice_changed = changeVoice('Human:' + human_response, voice=voice_select)
 
             # fetch the string from objects.txt 
             with open('objects.txt', 'r') as file:
@@ -292,7 +294,7 @@ def startConversation(prompt, speaker, temperature, max_tokens, top_p, openaiCli
 
             if voice_changed:
                 # response = "Certainly! I will change my voice. Is it better now?"
-                voice_prompt = [{"role": "system", "content": "You have changed your voice. Showcase the new voice and ask if the human likes it. Everything you do say will be in {language}."}]
+                voice_prompt = prompt + [{"role": "system", "content": "You have changed your voice. Showcase the new voice and ask if the human likes it."}]
                 response = getResponse(voice_prompt, temperature=temperature, max_tokens=max_tokens, top_p=top_p, openaiClient=openaiClient)
             else: 
                 response = getResponse(prompt, temperature=temperature, max_tokens=max_tokens, top_p = top_p, openaiClient=openaiClient)

@@ -31,6 +31,7 @@ import sys
 from google.cloud import speech
 import pyaudio
 from six.moves import queue
+import keyboard
 
 
 class MicrophoneStream(object):
@@ -87,9 +88,10 @@ class MicrophoneStream(object):
             if chunk is None:
                 return
             data = [chunk]
-
             # Now consume whatever other data's still buffered.
             while True:
+                if keyboard.is_pressed('n'):
+                    return
                 try:
                     chunk = self._buff.get(block=False)
                     if chunk is None:
