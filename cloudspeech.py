@@ -24,6 +24,7 @@ Example usage:
 
 # [START speech_transcribe_streaming_mic]
 from __future__ import division
+from concurrent.futures import thread
 from __init__ import *
 
 from robot.nao_functions import * 
@@ -39,7 +40,8 @@ import os
 import time
 import random
 import threading
-
+import signal
+import time
 import argparse
 
 from googlestream import *
@@ -399,10 +401,11 @@ if __name__ == "__main__":
     
     
     # We need to run the object detection in a separate thread to avoid blocking the main thread
-    thread1 = threading.Thread(target=startConversation, args=(prompt, name, temperature, max_tokens, top_p, openaiClient, IP, language, multi_lingual))
-    thread2 = threading.Thread(target=yolo_object_detection, args=("models/yolo11n.pt", True, 0.8, verbose, 'cpu'))
+    thread1 = threading.Thread(target=yolo_object_detection, args=("models/yolo11n.pt", True, 0.8, verbose, 'cpu'))
     thread1.start()
-    thread2.start()
+
+    startConversation(prompt, name, temperature=temperature, max_tokens=max_tokens, top_p=top_p, language=language, openaiClient=openaiClient, IP=IP, multi_lingual=multi_lingual)
+    print("Successfully exited...")
     # start the conversation
     # startConversation(prompt, name, temperature=temperature, max_tokens=max_tokens, top_p=top_p, language=language, openaiClient=openaiClient, IP=IP, multi_lingual=multi_lingual)
     # yolo_object_detection("models/yolo11n.pt", True, 0.8, verbose, 'cpu')
