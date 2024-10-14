@@ -1,6 +1,5 @@
 #!/usr/bin/env python
-
-
+# -*- coding: utf-8 -*-
 # Copyright 2017 Google Inc. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -25,6 +24,7 @@ Example usage:
 
 # [START speech_transcribe_streaming_mic]
 from __future__ import division
+from __init__ import *
 
 from robot.nao_functions import * 
 import re
@@ -50,6 +50,7 @@ from elevenlabs import set_api_key
 import os
 import subprocess
 
+from models.objectYolo import yolo_object_detection
 
 os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = 'credentials/chatkey.json'
 
@@ -64,18 +65,18 @@ verbose = False
 
 # Elevenlab voices
 eng_voices = {1: "21m00Tcm4TlvDq8ikWAM", # Rachel
-         2: "rU18Fk3uSDhmg5Xh41o4", # Ryan Kurk
-         3: "TWGIYqyf4ytM4ctpb0S1", # Pheobe
-         4: "nIBoiUir3RAsl7ppOJeu", # Dave - deep and gruff
-         5: "zrHiDhphv9ZnVXBqCLjz"} # Mimi
+              2: "rU18Fk3uSDhmg5Xh41o4", # Ryan Kurk
+              3: "TWGIYqyf4ytM4ctpb0S1", # Pheobe
+              4: "nIBoiUir3RAsl7ppOJeu", # Dave - deep and gruff
+              5: "zrHiDhphv9ZnVXBqCLjz"} # Mimi
 
+# Voice for multi-lingual tts model
 multi_voices = voices()
 
 global voice_select
 voice_select = 1
 
 set_api_key("cb4a60d9eaf1ad9514b055a3be1fc3b6")
-# get the voices
 
 
 def elevenLabsSay(text, IP, multi_lingual=False):
@@ -110,6 +111,8 @@ def elevenLabsSay(text, IP, multi_lingual=False):
 
 def getGestures(IP, text):
 
+    # Few shot prompting for gestures
+    # It was found that it improved the output of the models and also increasing the prompting speed.
     prompt = [
         {
         "role": "system",
@@ -175,7 +178,7 @@ def getConfig(language_code = "en-US"):
 
     return RATE, CHUNK, client, streaming_config
 
-def getResponse(prompt, temperature, max_tokens, top_p, openaiClient, frequency_penalty=1.75, presence_penalty=1.75, model="gpt-4-1106-preview"):
+def getResponse(prompt, temperature, max_tokens, top_p, openaiClient, frequency_penalty=1.75, presence_penalty=1.75, model="gpt-4-turbo"):
 
     response = openaiClient.chat.completions.create(
                 model=model,
@@ -247,7 +250,7 @@ def getName(main_prompt, temperature, openaiClient, IP, language='en-US', robot_
             
             pepper_response = getResponse(prompt, temperature=temperature, max_tokens=10, top_p=top_p, \
                                           openaiClient=openaiClient, frequency_penalty=1.5, presence_penalty=1, \
-                                          model="gpt-3.5-turbo-16k-0613")
+                                          model="gpt-4-turbo")
 
             if '-nothing' in pepper_response.lower() or '-ingenting' in pepper_response.lower():
                 prompt = [{"role": "system", "content": [{"type": "text", "text": main_prompt + '\n\n' + f"You missed the other person's name, and you should ask again. Be kind and understanding."}]}]
@@ -265,6 +268,7 @@ def getName(main_prompt, temperature, openaiClient, IP, language='en-US', robot_
                 if verbose:
                     print("-----------------")
                 return name, pepper_response
+
 
 def startConversation(prompt, speaker, temperature, max_tokens, top_p, openaiClient, IP, language='en-US', multi_lingual=True):
     # get the config for the google speech api
@@ -320,9 +324,9 @@ def getParser():
     parser.add_argument('--name', type=str, default='Human', help='name of the person you are talking to')
     parser.add_argument('--ip', type=str, default=None, help='IP address of the robot. (default: %(default)s)')
     parser.add_argument('--prompt', type=str, default=prompt, help='prompt to start the conversation')
-    parser.add_argument('--temperature', type=float, default=0.7, help='temperature for the GPT-3 model, float between 0 and 2')
-    parser.add_argument('--max_tokens', type=int, default=300, help='max tokens for the GPT-3 model')
-    parser.add_argument('--top_p', type=float, default=1, help='top p for the GPT-3 model')
+    parser.add_argument('--temperature', type=float, default=0.7, help='temperature for the GPT model, float between 0 and 2')
+    parser.add_argument('--max_tokens', type=int, default=300, help='max tokens for the GPT model')
+    parser.add_argument('--top_p', type=float, default=1, help='top p for the GPT model')
     parser.add_argument('--language', type=str, default='da-DK', help='language for the GPT-3 model: en-US, en-GB, da-DK etc. see https://cloud.google.com/speech-to-text/docs/speech-to-text-supported-languages for more.')
     parser.add_argument('--final_read', type=bool, default=False, help='if true the final text will be read out loud by the robot')
     parser.add_argument('--init_voice', type=int, default=2, help='init voice for the robot, 0. Robot, 1. Rachel, 2. Ryan Kurk, 3. Pheobe, 4. Dave, 5. Mimi')
@@ -392,6 +396,13 @@ if __name__ == "__main__":
     else:
         prompt = [{"role": "system", "content": prompt}, {"role": "assistant", "content": [{"type": "text", "text": ""}]}]
 
+    
+    
+    # We need to run the object detection in a separate thread to avoid blocking the main thread
+    thread1 = threading.Thread(target=startConversation, args=(prompt, name, temperature, max_tokens, top_p, openaiClient, IP, language, multi_lingual))
+    thread2 = threading.Thread(target=yolo_object_detection, args=("models/yolo11n.pt", True, 0.8, verbose, 'cpu'))
+    thread1.start()
+    thread2.start()
     # start the conversation
-    startConversation(prompt, name, temperature=temperature, max_tokens=max_tokens, top_p=top_p, language=language, openaiClient=openaiClient, IP=IP, multi_lingual=multi_lingual)
-
+    # startConversation(prompt, name, temperature=temperature, max_tokens=max_tokens, top_p=top_p, language=language, openaiClient=openaiClient, IP=IP, multi_lingual=multi_lingual)
+    # yolo_object_detection("models/yolo11n.pt", True, 0.8, verbose, 'cpu')
