@@ -1,1 +1,1 @@
-No objects detected
+Objects Pepper can see person

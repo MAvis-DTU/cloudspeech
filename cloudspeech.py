@@ -305,6 +305,10 @@ def startConversation(prompt, speaker, temperature, max_tokens, top_p, openaiCli
             else: 
                 response = getResponse(prompt, temperature=temperature, max_tokens=max_tokens, top_p = top_p, openaiClient=openaiClient)
 
+            # We should now generate some gestures for the robot
+            
+            
+            
             elevenLabsSay(response, IP, multi_lingual=multi_lingual)
             print('Pepper: ' + response)
             if verbose:
@@ -398,8 +402,6 @@ if __name__ == "__main__":
     else:
         prompt = [{"role": "system", "content": prompt}, {"role": "assistant", "content": [{"type": "text", "text": ""}]}]
 
-    
-    
     # We need to run the object detection in a separate thread to avoid blocking the main thread
     thread1 = threading.Thread(target=yolo_object_detection, args=("models/yolo11n.pt", True, 0.8, verbose, 'cpu'))
     thread1.start()

@@ -4,7 +4,7 @@ __pycache__/
 credentials/
 robot/__pycache__/
 
-
+models/yolo11n.pt
 
 # Object Detection files
 models/chatbot_detection_labels.rtf
