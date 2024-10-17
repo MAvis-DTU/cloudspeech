@@ -53,6 +53,8 @@ import os
 import subprocess
 
 from models.objectYolo import yolo_object_detection
+from models.objectMedia import objectDetection
+
 
 os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = 'credentials/chatkey.json'
 
@@ -97,7 +99,7 @@ def elevenLabsSay(text, IP, multi_lingual=False):
             start = time.time()
         
         if multi_lingual:
-            audio = generate(text=text, voice=multi_voices[1], model="eleven_multilingual_v2")
+            audio = generate(text=text, voice=multi_voices[7], model="eleven_multilingual_v2")
         else:
             audio = generate(text=text, voice=eng_voices[voice_select])
         
@@ -333,12 +335,14 @@ def getParser():
     parser.add_argument('--temperature', type=float, default=0.7, help='temperature for the GPT model, float between 0 and 2')
     parser.add_argument('--max_tokens', type=int, default=300, help='max tokens for the GPT model')
     parser.add_argument('--top_p', type=float, default=1, help='top p for the GPT model')
-    parser.add_argument('--language', type=str, default='da-DK', help='language for the GPT-3 model: en-US, en-GB, da-DK etc. see https://cloud.google.com/speech-to-text/docs/speech-to-text-supported-languages for more.')
+    parser.add_argument('--language', type=str, default='en-US', help='language for the GPT-3 model: en-US, en-GB, da-DK etc. see https://cloud.google.com/speech-to-text/docs/speech-to-text-supported-languages for more.')
     parser.add_argument('--final_read', type=bool, default=False, help='if true the final text will be read out loud by the robot')
     parser.add_argument('--init_voice', type=int, default=2, help='init voice for the robot, 0. Robot, 1. Rachel, 2. Ryan Kurk, 3. Pheobe, 4. Dave, 5. Mimi')
+    parser.add_argument('--device', type=str, default='cpu', help='The device to run the od on.')
     parser.add_argument('-od', '--object_detection', action='store_true', help='if true the object detection will be run')
     parser.add_argument('-v', '--verbose', action='store_true', help='increase output verbosity')
     parser.add_argument('-ml', '--multi_lingual', action='store_true', help='use the multi-lingual model')
+    parser.add_argument('-yolo', '--yolo', action='store_true', help='to use yolo models for object detection')
     # parse the arguments
     args = parser.parse_args()
     # get the variables from the arguments
@@ -349,19 +353,26 @@ def getParser():
     top_p = args.top_p
     language = args.language
     final_read = args.final_read
-
     global voice_select
     voice_select = args.init_voice
     global verbose
     verbose = args.verbose
-
+    device = args.device
     multi_lingual = args.multi_lingual
 
     if args.object_detection:
-        if verbose:
+        if args.verbose:
             print("Running object detection")
-        # Run the objectMedia.py script
-        subprocess.run(['python3', 'models/objectMedia.py'], stdout=subprocess.DEVNULL, stderr=subprocess.STDOUT)
+        
+        if args.yolo:
+            # We need to run the object detection in a separate thread to avoid blocking the main thread
+            thread1 = threading.Thread(target=yolo_object_detection, args=("models/yolo11n.pt", True, 0.8, verbose, device))
+            thread1.start()        
+        else:
+            # Run the objectMedia.py script
+            thread1 = threading.Thread(target=objectDetection)
+            thread1.start()
+            # subprocess.run(['python3', 'models/objectMedia.py'], stdout=subprocess.DEVNULL, stderr=subprocess.STDOUT)
 
     IP = args.ip
 
@@ -393,7 +404,7 @@ if __name__ == "__main__":
         \n5: Female, young, light, delicate and sweet. It exudes innocence and charm. 
         \n\n
         """
-
+    
     openaiClient = openai.OpenAI(api_key=api_key)
     # get the name of the human if not specified using argument parser
     if name == 'Human':
@@ -401,10 +412,6 @@ if __name__ == "__main__":
         prompt = [{"role": "system", "content": prompt}, {"role": "assistant", "content": [{"type": "text", "text": pepper_response}]}]
     else:
         prompt = [{"role": "system", "content": prompt}, {"role": "assistant", "content": [{"type": "text", "text": ""}]}]
-
-    # We need to run the object detection in a separate thread to avoid blocking the main thread
-    thread1 = threading.Thread(target=yolo_object_detection, args=("models/yolo11n.pt", True, 0.8, verbose, 'cpu'))
-    thread1.start()
 
     startConversation(prompt, name, temperature=temperature, max_tokens=max_tokens, top_p=top_p, language=language, openaiClient=openaiClient, IP=IP, multi_lingual=multi_lingual)
     print("Successfully exited...")
