@@ -55,6 +55,11 @@ import subprocess
 from models.objectYolo import yolo_object_detection
 from models.objectMedia import objectDetection
 
+# For NLP purposes
+import nltk
+nltk.download('punkt')
+from nltk.tokenize import sent_tokenize
+
 
 os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = 'credentials/chatkey.json'
 
@@ -82,11 +87,7 @@ voice_select = 1
 
 set_api_key("cb4a60d9eaf1ad9514b055a3be1fc3b6")
 
-
-def elevenLabsSay(text, IP, multi_lingual=False):
-    if IP is not None:
-        split_sentences, gesture_numbers = getGestures(IP, text)
-        gesture_thread = threading.Thread(target=nao_gesture, args=(IP, split_sentences, gesture_numbers))
+def elevenLabsSay(text, IP, gesture_thread=None, multi_lingual=False):
 
     if voice_select == 0 and IP is not None:
         assert IP is not None, "IP address is not specified, and thus the robot cannot speak. voice_select 0 is not possible."
@@ -102,25 +103,41 @@ def elevenLabsSay(text, IP, multi_lingual=False):
             audio = generate(text=text, voice=multi_voices[7], model="eleven_multilingual_v2")
         else:
             audio = generate(text=text, voice=eng_voices[voice_select])
-        
         # Verbose output
         if verbose:
             end = time.time()
             print(f"Time taken: {end-start:.2f} s", file=sys.stderr)
             print("Generate Audio: END\n")
         # Create gestures if the robot is connected
-        if IP is not None:
+        if gesture_thread is not None:
             gesture_thread.start()
-        play(audio)
+            play(audio)
+            gesture_thread.join()
+        else:
+            play(audio)
+    
 
-def getGestures(IP, text):
+
+def get_duration(audio):
+    """
+    Takes an audio file in bytes and finds an approximate duration
+
+    duration (s) = (size (in bytes) X 8) / Bitrate (in kbps)
+    
+    Default bitrate from elevenlabs is 192kbps for Creator, Pro, Scale, Business.
+    """
+    # get audio size in bytes    
+    return ((audio.__sizeof__() * 8)/192)/1000
+
+
+def get_gestures(text, openaiClient):
 
     # Few shot prompting for gestures
     # It was found that it improved the output of the models and also increasing the prompting speed.
     prompt = [
         {
         "role": "system",
-        "content": "Given a paragraph of text, annotate every 10 words in that paragraph with the most appropriate tag. You should always give a tag no matter what. The tags are to be placed in square brackets. \n\nFollowing tags are available:\n0. Happy\n1. Sad\n2. Affirmative\n3. Unfamiliar\n4. Thinking\n5. Explain\n\nIt should be on the form:\n\nHi, [5] have you heard about the recent news? They are [1] quite horrific to say the [1] least."
+        "content": "Given a paragraph of text, annotate every 20 words in that paragraph with the most appropriate tag. You should always give a tag no matter what. The tags are to be placed in square brackets. \n\nFollowing tags are available:\n0. Happy\n1. Sad\n2. Affirmative\n3. Unfamiliar\n4. Thinking\n5. Explain\n\nIt should be on the form:\n\nHi, [5] have you heard about the recent news? They are [1] quite horrific to say the least."
         },
         {
         "role": "user",
@@ -128,7 +145,7 @@ def getGestures(IP, text):
         },
         {
         "role": "assistant",
-        "content": [{"type": "text", "text": "I am [5] so very sad [1] today. My parents [2] are getting a divorce [1] and I am unsure how to [5] react to it."}]
+        "content": [{"type": "text", "text": "I am [5] so very sad today. My parents are getting a divorce [1] and I am unsure how to [5] react to it."}]
         },
         {
         "role": "user",
@@ -136,7 +153,7 @@ def getGestures(IP, text):
         },
         {
         "role": "assistant",
-        "content": [{"type": "text", "text": "I just graduated my Masters [2] today! What a [0] thrill it [2] was."}]
+        "content": [{"type": "text", "text": "I just graduated my Masters [2] today! What a thrill it [2] was."}]
         },
         {
         "role": "user",
@@ -144,7 +161,7 @@ def getGestures(IP, text):
         },
         {
         "role": "assistant",
-        "content": [{"type": "text", "text": "I don't understand what you [1] mean. Let me just [4] think about [4] it."}]
+        "content": [{"type": "text", "text": "I don't understand what you [1] mean. Let me justf think about [4] it."}]
         },
         {
         "role": "user",
@@ -156,6 +173,7 @@ def getGestures(IP, text):
         start = time.time()
     response = getResponse(prompt, temperature=1, max_tokens=256, top_p=1, openaiClient=openaiClient, frequency_penalty=0, presence_penalty=0)
     if verbose:
+        print(response)
         end = time.time()
         print(f"Time taken: {end-start:.2f} s", file=sys.stderr)
         print("Get Gestures: END\n")
@@ -176,7 +194,7 @@ def getConfig(language_code = "en-US"):
     )
 
     streaming_config = speech.StreamingRecognitionConfig(
-        config=config, interim_results=True
+        config=config, interim_results=True, single_utterance=True 
     )
     #streaming_config.VoiceActivityTimeout(speech_start_timeout = 10)
 
@@ -200,11 +218,14 @@ def changeVoice(prompt, voice):
     voice_prompt = [
                     {
                     "role": "user",
-                    "content": f"You have the following voices to chose from. They have a number and a description: {voice_descriptions}. Below you will get a sentence said by a human. Your current voice is {voice}. If the human explicitly requests for you to change your voice, write the number that best matches the request: (number), otherwise write: -nothing. Note that it is only if the human asks about another voice, not if the human simply mentions the name of the voice.\\n\\n',\n\n{prompt}\n"
+                    "content": [{"type":"text", "text":f"You have the following voices to chose from. They have a number and a description: {voice_descriptions}. Below you will get a sentence said by a human. Your current voice is {voice}. If the human explicitly requests for you to change your voice, write the number that best matches the request: (number), otherwise write: -nothing. Note that it is only if the human asks about another voice, not if the human simply mentions the name of the voice.\\n\\n',\n\n{prompt}\n"
+                                }
+                                ]
                     },
                     {
                     "role": "assistant",
-                    "content": "2"
+                    "content": [{"type": "text",
+                                 "text": "2"}]
                     }
                     ]
     response = getResponse(voice_prompt, temperature=1, max_tokens=256, top_p=1, openaiClient=openaiClient, frequency_penalty=0, presence_penalty=0)
@@ -225,12 +246,41 @@ def changeVoice(prompt, voice):
             print("Voice not changed")
         return 0
 
+def remove_incomplete_sentence(text):
+    sentences = sent_tokenize(text)
+    if sentences:
+        last_sentence = sentences[-1]
+        if last_sentence.endswith('.') or last_sentence.endswith('!') or last_sentence.endswith('?'):
+            return text
+        else:
+            # Remove the last sentence
+            text = text.rsplit(sentences[-1], 1)[0]
+            return text
+    else:
+        return text
+    
+def conditional_say(pepper_response, bot_name, IP, openaiClient, multi_lingual):
+    if IP:
+        split_sentences, gesture_numbers = get_gestures(pepper_response, openaiClient)
+        gesture_thread = threading.Thread(target=nao_gesture, args=(IP, split_sentences, gesture_numbers))
+        # gesture_thread.start()
+        if voice_select == 0 and not multi_lingual:
+            say(IP, pepper_response, bot_name, gesture_thread)
+        else:
+            elevenLabsSay(pepper_response, IP, gesture_thread, multi_lingual=multi_lingual)
+    else:
+        elevenLabsSay(pepper_response, IP, multi_lingual=multi_lingual)
+        
+
+
 def getName(main_prompt, temperature, openaiClient, IP, language='en-US', robot_name='Pepper', multi_lingual=True): 
     # Some introductory phrases
     prompt = [{"role": "system", "content": [{"type": "text", "text": main_prompt + '\n\n' + f"You are a robot called Pepper, and you are engaging in a conversation. Briefly introduce yourself in one sentence ask for the other person's name in a fun and engaging way."}]}]
     introduction = getResponse(prompt, temperature=temperature, max_tokens=255, top_p=1, openaiClient=openaiClient)
-    elevenLabsSay(introduction, IP, multi_lingual=multi_lingual)
-    print('Pepper: ' + introduction)
+    # elevenLabsSay(introduction, IP, multi_lingual=multi_lingual)
+    conditional_say(introduction, robot_name, IP, openaiClient=openaiClient, multi_lingual=multi_lingual)
+
+    print(f'{robot_name}: ' + introduction)
     if verbose:
         print("-----------------")
 
@@ -257,9 +307,10 @@ def getName(main_prompt, temperature, openaiClient, IP, language='en-US', robot_
                                           model="gpt-4-turbo")
 
             if '-nothing' in pepper_response.lower() or '-ingenting' in pepper_response.lower():
-                prompt = [{"role": "system", "content": [{"type": "text", "text": main_prompt + '\n\n' + f"You missed the other person's name, and you should ask again. Be kind and understanding."}]}]
+                prompt = [{"role": "system", "content": [{"type": "text", "text": main_prompt + '\n\n' + f"You missed the other person's name, and you should ask again. Be kind and understanding. Answer back in the correct language."}]}]
                 pepper_response = getResponse(prompt, temperature=temperature, max_tokens=10, top_p=top_p, openaiClient=openaiClient)
-                elevenLabsSay(pepper_response, IP, multi_lingual=multi_lingual)
+                # elevenLabsSay(pepper_response, IP, multi_lingual=multi_lingual)
+                conditional_say(pepper_response, robot_name, IP, openaiClient=openaiClient, multi_lingual=multi_lingual)
                 print('Pepper: ' + pepper_response)
                 if verbose:
                     print("-----------------")
@@ -267,7 +318,9 @@ def getName(main_prompt, temperature, openaiClient, IP, language='en-US', robot_
                 name = pepper_response
                 prompt = [{"role": "system", "content": [{"type": "text", "text": main_prompt + '\n\n' + f"Great! So the human has introduced themselves as {name}. Now acknowledge it."}]}]
                 pepper_response = getResponse(prompt, temperature=temperature, max_tokens=255, top_p=top_p, openaiClient=openaiClient)
-                elevenLabsSay(pepper_response, IP, multi_lingual=multi_lingual)
+                # elevenLabsSay(pepper_response, IP, multi_lingual=multi_lingual)
+                conditional_say(pepper_response, robot_name, IP, openaiClient=openaiClient, multi_lingual=multi_lingual)
+
                 print('Pepper: ' + pepper_response)
                 if verbose:
                     print("-----------------")
@@ -310,8 +363,8 @@ def startConversation(prompt, speaker, temperature, max_tokens, top_p, openaiCli
             # We should now generate some gestures for the robot
             
             
-            
-            elevenLabsSay(response, IP, multi_lingual=multi_lingual)
+            conditional_say(response, "Pepper", IP, openaiClient=openaiClient, multi_lingual=multi_lingual)
+            # elevenLabsSay(response, IP, multi_lingual=multi_lingual)
             print('Pepper: ' + response)
             if verbose:
                 print("-----------------")
@@ -335,7 +388,7 @@ def getParser():
     parser.add_argument('--temperature', type=float, default=0.7, help='temperature for the GPT model, float between 0 and 2')
     parser.add_argument('--max_tokens', type=int, default=300, help='max tokens for the GPT model')
     parser.add_argument('--top_p', type=float, default=1, help='top p for the GPT model')
-    parser.add_argument('--language', type=str, default='en-US', help='language for the GPT-3 model: en-US, en-GB, da-DK etc. see https://cloud.google.com/speech-to-text/docs/speech-to-text-supported-languages for more.')
+    parser.add_argument('--language', type=str, default='da-DK', help='language for the GPT-3 model: en-US, en-GB, da-DK etc. see https://cloud.google.com/speech-to-text/docs/speech-to-text-supported-languages for more.')
     parser.add_argument('--final_read', type=bool, default=False, help='if true the final text will be read out loud by the robot')
     parser.add_argument('--init_voice', type=int, default=2, help='init voice for the robot, 0. Robot, 1. Rachel, 2. Ryan Kurk, 3. Pheobe, 4. Dave, 5. Mimi')
     parser.add_argument('--device', type=str, default='cpu', help='The device to run the od on.')
@@ -359,7 +412,10 @@ def getParser():
     verbose = args.verbose
     device = args.device
     multi_lingual = args.multi_lingual
-
+    
+    if language == 'da-DK':
+        multi_lingual = True
+        
     if args.object_detection:
         if args.verbose:
             print("Running object detection")
@@ -415,6 +471,3 @@ if __name__ == "__main__":
 
     startConversation(prompt, name, temperature=temperature, max_tokens=max_tokens, top_p=top_p, language=language, openaiClient=openaiClient, IP=IP, multi_lingual=multi_lingual)
     print("Successfully exited...")
-    # start the conversation
-    # startConversation(prompt, name, temperature=temperature, max_tokens=max_tokens, top_p=top_p, language=language, openaiClient=openaiClient, IP=IP, multi_lingual=multi_lingual)
-    # yolo_object_detection("models/yolo11n.pt", True, 0.8, verbose, 'cpu')

@@ -48,9 +48,17 @@ animations =   {'0': ["animations/Stand/Gestures/Enthusiastic_4",    # Happy
                     "animations/Stand/Gestures/YouKnowWhat_2",
                     "animations/Stand/Gestures/YouKnowWhat_3"]
                 }
+
+
 for i in gesture_numbers:
     try:
-        behavior.startBehavior(random.choice(animations[i]))
+        chosen_behavior = random.choice(animations[i])
+        while not behavior.isBehaviorInstalled(chosen_behavior):
+                chosen_behavior = random.choice(animations[i])
+        behavior.startBehavior(chosen_behavior)
+        while behavior.isBehaviorRunning(chosen_behavior):
+            time.sleep(0.1)  # Check every 100ms if the behavior is still running
+        time.sleep(0.01)
     except (EOFError):
         time.sleep(0.01)
         continue

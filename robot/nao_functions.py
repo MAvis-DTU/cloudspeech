@@ -1,4 +1,5 @@
 import subprocess
+import threading
 
 def nao_init(IP):
     subprocess.run(['python2', 'robot/nao_init.py'], input=bytes(IP, encoding="utf-8"))
@@ -6,7 +7,8 @@ def nao_init(IP):
 def nao_facetrack(IP):
     subprocess.run(['python2', 'robot/nao_facetrack.py'], input=bytes(IP, encoding="utf-8"))
 
-def say(IP, s, bot_name, gesture_thread):
+def say(IP, s, bot_name, split_sentences, gesture_numbers):
+    gesture_thread = threading.Thread(target=nao_gesture, args=(IP, split_sentences, gesture_numbers))
     gesture_thread.start()
     s = s.replace("\n", " ")
     subprocess.run(['python2', 'robot/nao_say.py'], input=bytes(IP + '\n' + s + '\n' + bot_name, encoding="utf-8"))
