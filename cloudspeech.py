@@ -29,9 +29,12 @@ from __init__ import *
 
 from robot.nao_functions import * 
 import re
-# import sys
+import json
 
-from google.cloud import speech
+# from google.cloud import speech
+import google.cloud.speech_v2 as speech_v2
+from google.cloud.speech_v2 import SpeechClient
+from google.cloud.speech_v2.types import cloud_speech as cloud_speech_types
 
 # import pyaudio
 
@@ -54,7 +57,7 @@ import os
 import subprocess
 
 from models.objectYolo import yolo_object_detection
-from models.objectMedia import objectDetection
+# from models.objectMedia import objectDetection
 
 # For NLP purposes
 import nltk
@@ -62,7 +65,7 @@ nltk.download('punkt')
 from nltk.tokenize import sent_tokenize
 
 
-os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = 'credentials/chatkey.json'
+os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = 'credentials/chatkey-dennis.json'
 
 with open('credentials/openaiKey.txt', 'r') as f:
     os.environ['gpt4key'] = f.read()
@@ -87,7 +90,12 @@ global voice_select
 voice_select = 1
 
 set_api_key("cb4a60d9eaf1ad9514b055a3be1fc3b6")    
-    
+
+with open(os.getenv("GOOGLE_APPLICATION_CREDENTIALS")) as json_file:
+    data = json.load(json_file)
+PROJECT_ID = data["project_id"]
+
+
 class GestureThread(Thread):
     def __init__(self, IP, split_sentences, gesture_numbers):
         Thread.__init__(self)
@@ -201,16 +209,26 @@ def getConfig(language_code = "en-US"):
     RATE = 16000
     CHUNK = int(RATE / 5)  # 100ms
 
-    client = speech.SpeechClient()
-    config = speech.RecognitionConfig(
-        encoding=speech.RecognitionConfig.AudioEncoding.LINEAR16,
-        sample_rate_hertz=RATE,
-        language_code=language_code
+    client = SpeechClient()
+
+    # config = speech.RecognitionConfig(
+    #     encoding=speech.RecognitionConfig.AudioEncoding.LINEAR16,
+    #     sample_rate_hertz=RATE,
+    #     language_code=language_code
+    # )
+    recognition_config = speech_v2.RecognitionConfig(
+        auto_decoding_config=speech_v2.AutoDetectDecodingConfig(),  # Auto-detect encoding
+        language_codes=[language_code],  # Accepts a list of language codes in v2
+        model="long",  # Set the model to "long" for long-form audio
     )
 
-    streaming_config = speech.StreamingRecognitionConfig(
-        config=config, interim_results=True, single_utterance=True 
+    # Set up the StreamingRecognitionConfig for v2
+    streaming_config = speech_v2.StreamingRecognitionConfig(
+        config=recognition_config
     )
+    # streaming_config = speech.StreamingRecognitionConfig(
+    #     config=config, interim_results=True, single_utterance=True 
+    # )
     #streaming_config.VoiceActivityTimeout(speech_start_timeout = 10)
 
     return RATE, CHUNK, client, streaming_config
@@ -299,17 +317,31 @@ def getName(main_prompt, temperature, openaiClient, IP, language='en-US', robot_
 
     # get the config for the google speech api
     RATE, CHUNK, client, streaming_config = getConfig(language_code=language)
-
+    
+    def request_generator(requests):
+        for request in requests:
+            yield request      
+    print(1)
+    recognizer = speech_v2.StreamingRecognizeRequest(
+                recognizer=f"projects/{PROJECT_ID}/locations/global/recognizers/_",
+                streaming_config=streaming_config)  
+    print(2)
     # loop until the user says their name
     while True:
         with MicrophoneStream(RATE, CHUNK) as stream:
             audio_generator = stream.generator()
-            requests = (
-                speech.StreamingRecognizeRequest(audio_content=content)
-                for content in audio_generator
-            )
-            #listen("Start")
-            human_response = client.streaming_recognize(streaming_config, requests)
+                    
+            # Create a list with the recognizer as the first entry
+            requests = [recognizer]
+            
+            # Append the generator expression to the list
+            requests.extend(speech_v2.StreamingRecognizeRequest(audio=audio_content) for audio_content in audio_generator)
+        
+            # listen("Start")
+            # check if audio_generator is empty
+            print("Cookedd")
+            human_response = client.streaming_recognize(requests=requests)
+            print('Raww')
             human_response = listen_print_loop('Human', human_response, verbose=verbose)
             system_message  = 'What did the human say his name was in the following sentence? \n If the human did not specify write: -nothing, otherwise write ONLY the name of the human.\n\n'
 
@@ -375,7 +407,6 @@ def startConversation(prompt, speaker, temperature, max_tokens, top_p, openaiCli
 
             # We should now generate some gestures for the robot
             
-            
             conditional_say(response, "Pepper", IP, openaiClient=openaiClient, multi_lingual=multi_lingual)
             # elevenLabsSay(response, IP, multi_lingual=multi_lingual)
             print('Pepper: ' + response)
@@ -437,10 +468,10 @@ def getParser():
             # We need to run the object detection in a separate thread to avoid blocking the main thread
             thread1 = threading.Thread(target=yolo_object_detection, args=("models/yolo11n.pt", True, 0.8, verbose, device))
             thread1.start()        
-        else:
-            # Run the objectMedia.py script
-            thread1 = threading.Thread(target=objectDetection)
-            thread1.start()
+        # else:
+        #     # Run the objectMedia.py script
+        #     thread1 = threading.Thread(target=objectDetection)
+        #     thread1.start()
             # subprocess.run(['python3', 'models/objectMedia.py'], stdout=subprocess.DEVNULL, stderr=subprocess.STDOUT)
 
     IP = args.ip
