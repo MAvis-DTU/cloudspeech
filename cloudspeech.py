@@ -54,7 +54,6 @@ import os
 import subprocess
 
 from models.objectYolo import yolo_object_detection
-from models.objectMedia import objectDetection
 
 # For NLP purposes
 import nltk
@@ -320,7 +319,7 @@ def getName(main_prompt, temperature, openaiClient, IP, language='en-US', robot_
                                           model="gpt-4-turbo")
 
             if '-nothing' in pepper_response.lower() or '-ingenting' in pepper_response.lower():
-                prompt = [{"role": "system", "content": [{"type": "text", "text": prompt + '\n\n' + f"You missed the other person's name, and you should ask again. Be kind and understanding. Answer back in the correct language."}]}]
+                prompt = [{"role": "system", "content": [{"type": "text", "text": "You missed the other person's name, and you should ask again. Be kind and understanding. Answer back in the correct language."}]}]
                 pepper_response = getResponse(prompt, temperature=temperature, max_tokens=10, top_p=top_p, openaiClient=openaiClient)
                 # elevenLabsSay(pepper_response, IP, multi_lingual=multi_lingual)
                 conditional_say(pepper_response, robot_name, IP, openaiClient=openaiClient, multi_lingual=multi_lingual)
@@ -329,7 +328,7 @@ def getName(main_prompt, temperature, openaiClient, IP, language='en-US', robot_
                     print("-----------------")
             else: 
                 name = pepper_response
-                prompt = [{"role": "system", "content": [{"type": "text", "text": main_prompt + '\n\n' + f"Great! So the human has introduced themselves as {name}. Now acknowledge it."}]}]
+                prompt = [{"role": "system", "content": [{"type": "text", "text": f"Great! So the human has introduced themselves as {name}. Now acknowledge it."}]}]
                 pepper_response = getResponse(prompt, temperature=temperature, max_tokens=255, top_p=top_p, openaiClient=openaiClient)
                 # elevenLabsSay(pepper_response, IP, multi_lingual=multi_lingual)
                 conditional_say(pepper_response, robot_name, IP, openaiClient=openaiClient, multi_lingual=multi_lingual)
@@ -408,7 +407,6 @@ def getParser():
     parser.add_argument('-od', '--object_detection', action='store_true', help='if true the object detection will be run')
     parser.add_argument('-v', '--verbose', action='store_true', help='increase output verbosity')
     parser.add_argument('-ml', '--multi_lingual', action='store_true', help='use the multi-lingual model')
-    parser.add_argument('-yolo', '--yolo', action='store_true', help='to use yolo models for object detection')
     # parse the arguments
     args = parser.parse_args()
     # get the variables from the arguments
@@ -432,17 +430,9 @@ def getParser():
     if args.object_detection:
         if args.verbose:
             print("Running object detection")
-        
-        if args.yolo:
-            # We need to run the object detection in a separate thread to avoid blocking the main thread
-            thread1 = threading.Thread(target=yolo_object_detection, args=("models/yolo11n.pt", True, 0.8, verbose, device))
-            thread1.start()        
-        else:
-            # Run the objectMedia.py script
-            thread1 = threading.Thread(target=objectDetection)
-            thread1.start()
-            # subprocess.run(['python3', 'models/objectMedia.py'], stdout=subprocess.DEVNULL, stderr=subprocess.STDOUT)
-
+        # We need to run the object detection in a separate thread to avoid blocking the main thread
+        thread1 = threading.Thread(target=yolo_object_detection, args=("models/yolo11n.pt", True, 0.8, verbose, device))
+        thread1.start()        
     IP = args.ip
 
     return IP, name, prompt, temperature, max_tokens, top_p, language, final_read, multi_lingual
