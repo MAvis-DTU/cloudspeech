@@ -55,10 +55,16 @@ import subprocess
 
 from models.objectYolo import yolo_object_detection
 
-# For NLP purposes
-import nltk
-nltk.download('punkt')
-from nltk.tokenize import sent_tokenize
+import io
+from pydub import AudioSegment
+import librosa
+import soundfile as sf
+import io
+
+# # For NLP purposes
+# import nltk
+# nltk.download('punkt')
+# from nltk.tokenize import sent_tokenize
 
 
 os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = 'credentials/chatkey.json'
@@ -116,6 +122,40 @@ class GestureThread(Thread):
             self.p.kill()
             
     
+
+def change_pitch(audio_bytes, pitch_shift_steps):
+    # Step 1: Read MP3 bytes using pydub and convert to WAV format in-memory
+    audio_buffer = io.BytesIO(audio_bytes)
+    audio = AudioSegment.from_file(audio_buffer, format="mp3")
+    
+    # Step 2: Convert the audio data to raw samples (WAV format in-memory)
+    wav_io = io.BytesIO()
+    audio.export(wav_io, format="wav")
+    wav_io.seek(0)
+    
+    # Step 3: Load the audio into librosa
+    y, sr = librosa.load(wav_io, sr=None)
+    
+    # Step 4: Perform pitch shifting using librosa (corrected argument usage)
+    shifted_audio = librosa.effects.pitch_shift(y, sr=sr, n_steps=pitch_shift_steps)
+    
+    # Step 5: Convert the shifted audio back to WAV format
+    wav_shifted_io = io.BytesIO()
+    sf.write(wav_shifted_io, shifted_audio, samplerate=sr, format='WAV')
+    
+    # Step 6: Convert the WAV back to MP3 format using pydub
+    wav_shifted_io.seek(0)
+    shifted_audio_segment = AudioSegment.from_file(wav_shifted_io, format="wav")
+    
+    # Step 7: Export the shifted audio as MP3 to a byte stream
+    mp3_shifted_io = io.BytesIO()
+    shifted_audio_segment.export(mp3_shifted_io, format="mp3", bitrate="192k")
+    
+    # Move to the beginning of the BytesIO object before reading
+    mp3_shifted_io.seek(0)
+    
+    return mp3_shifted_io.read()
+
 def elevenLabsSay(text, IP, gesture_thread=None, multi_lingual=False):
     if voice_select == 0 and IP is not None:
         assert IP is not None, "IP address is not specified, and thus the robot cannot speak. voice_select 0 is not possible."
@@ -130,6 +170,9 @@ def elevenLabsSay(text, IP, gesture_thread=None, multi_lingual=False):
             audio = generate(text=text, voice=multi_voices[7], model="eleven_multilingual_v2")
         else:
             audio = generate(text=text, voice=eng_voices[voice_select])
+        # Alter audio sound to be more robotic
+        audio = change_pitch(audio, pitch_shift_steps=2) 
+        
         # Verbose output
         if verbose:
             end = time.time()
@@ -260,18 +303,18 @@ def changeVoice(prompt, voice):
             print("Voice not changed")
         return 0
 
-def remove_incomplete_sentence(text):
-    sentences = sent_tokenize(text)
-    if sentences:
-        last_sentence = sentences[-1]
-        if last_sentence.endswith('.') or last_sentence.endswith('!') or last_sentence.endswith('?'):
-            return text
-        else:
-            # Remove the last sentence
-            text = text.rsplit(sentences[-1], 1)[0]
-            return text
-    else:
-        return text
+# def remove_incomplete_sentence(text):
+#     sentences = sent_tokenize(text)
+#     if sentences:
+#         last_sentence = sentences[-1]
+#         if last_sentence.endswith('.') or last_sentence.endswith('!') or last_sentence.endswith('?'):
+#             return text
+#         else:
+#             # Remove the last sentence
+#             text = text.rsplit(sentences[-1], 1)[0]
+#             return text
+#     else:
+#         return text
     
 def conditional_say(pepper_response, bot_name, IP, openaiClient, multi_lingual):
     if IP:
@@ -302,6 +345,10 @@ def getName(main_prompt, temperature, openaiClient, IP, language='en-US', robot_
     # loop until the user says their name
     while True:
         with MicrophoneStream(RATE, CHUNK) as stream:
+            if verbose: 
+                print("-----------------")
+                print("Listening: START")
+                start = time.time()
             audio_generator = stream.generator()
             requests = (
                 speech.StreamingRecognizeRequest(audio_content=content)
@@ -310,6 +357,11 @@ def getName(main_prompt, temperature, openaiClient, IP, language='en-US', robot_
             #listen("Start")
             human_response = client.streaming_recognize(streaming_config, requests)
             human_response = listen_print_loop('Human', human_response, verbose=verbose)
+            if verbose:
+                end = time.time()
+                print(f"Time taken: {end-start:.2f} s")
+                print("Listening: END\n")
+                print("-----------------")
             system_message  = 'What did the human say his name was in the following sentence? \n If the human did not specify write: -nothing, otherwise write ONLY the name of the human.\n\n'
 
             prompt = [{"role": "system", "content": [{"type": "text", "text": system_message}]}, {"role": "user", "content": [{"type": "text", "text": human_response}]}]          
@@ -319,7 +371,7 @@ def getName(main_prompt, temperature, openaiClient, IP, language='en-US', robot_
                                           model="gpt-4-turbo")
 
             if '-nothing' in pepper_response.lower() or '-ingenting' in pepper_response.lower():
-                prompt = [{"role": "system", "content": [{"type": "text", "text": "You missed the other person's name, and you should ask again. Be kind and understanding. Answer back in the correct language."}]}]
+                prompt = [{"role": "system", "content": [{"type": "text", "text": main_prompt + '\n\n' + f"You missed the other person's name, and you should ask again. Be kind and understanding. The response should be in {language}."}]}]
                 pepper_response = getResponse(prompt, temperature=temperature, max_tokens=10, top_p=top_p, openaiClient=openaiClient)
                 # elevenLabsSay(pepper_response, IP, multi_lingual=multi_lingual)
                 conditional_say(pepper_response, robot_name, IP, openaiClient=openaiClient, multi_lingual=multi_lingual)
@@ -328,7 +380,7 @@ def getName(main_prompt, temperature, openaiClient, IP, language='en-US', robot_
                     print("-----------------")
             else: 
                 name = pepper_response
-                prompt = [{"role": "system", "content": [{"type": "text", "text": f"Great! So the human has introduced themselves as {name}. Now acknowledge it."}]}]
+                prompt = [{"role": "system", "content": [{"type": "text", "text": main_prompt + '\n\n' + f"Great! So the human has introduced themselves as {name}. Now acknowledge it. The response should be in {language}."}]}]
                 pepper_response = getResponse(prompt, temperature=temperature, max_tokens=255, top_p=top_p, openaiClient=openaiClient)
                 # elevenLabsSay(pepper_response, IP, multi_lingual=multi_lingual)
                 conditional_say(pepper_response, robot_name, IP, openaiClient=openaiClient, multi_lingual=multi_lingual)
@@ -346,6 +398,10 @@ def startConversation(prompt, speaker, temperature, max_tokens, top_p, openaiCli
     # start the conversation loop 
     while True:
         with MicrophoneStream(RATE, CHUNK) as stream:
+            if verbose: 
+                print("-----------------")
+                print("Listening: START")
+                start = time.time()
             audio_generator = stream.generator()
             requests = (
                 speech.StreamingRecognizeRequest(audio_content=content)
@@ -356,6 +412,12 @@ def startConversation(prompt, speaker, temperature, max_tokens, top_p, openaiCli
             
             #print('Human: ')
             human_response = listen_print_loop(speaker, human_response, verbose=verbose)
+            if verbose:
+                end = time.time()
+                print(f"Time taken: {end-start:.2f} s")
+                print("Listening: END\n")
+                print("-----------------")
+                
             if not multi_lingual:
                 voice_changed = changeVoice('Human:' + human_response, voice=voice_select)
 

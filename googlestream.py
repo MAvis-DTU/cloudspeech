@@ -115,10 +115,7 @@ def listen_print_loop(speaker, responses, socket=None, is_setup=False, bot_name=
     the next result to overwrite it, until the response is a final one. For the
     final one, print a newline to preserve the finalized transcription.
     """
-    if verbose:
-        print("-----------------")
-        print("Listening: START")
-        start = time.time()
+
     num_chars_printed = 0
     for response in responses:
         if not response.results:
@@ -150,11 +147,6 @@ def listen_print_loop(speaker, responses, socket=None, is_setup=False, bot_name=
                 socket.emit("new message", (transcript, "person", bot_name, None, is_setup, False))
         else:
             print(speaker+': '+ transcript + overwrite_chars)
-            if verbose:
-                end = time.time()
-                print(f"Time taken: {end-start:.2f} s")
-                print("Listening: END\n")
-                print("-----------------")
             return transcript
             # # Exit recognition if any of the transcribed phrases could be
             # # one of our keywords.
