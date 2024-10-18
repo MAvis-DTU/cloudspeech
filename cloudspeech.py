@@ -38,10 +38,7 @@ from google.cloud import speech
 import openai
 import os
 import time
-import random
-import threading
 from threading import Thread
-import signal
 import time
 import argparse
 
@@ -52,8 +49,6 @@ from elevenlabs import set_api_key
 
 import os
 import subprocess
-
-from models.objectYolo import yolo_object_detection
 
 import io
 from pydub import AudioSegment
@@ -496,7 +491,6 @@ def getParser():
     parser.add_argument('-od', '--object_detection', action='store_true', help='if true the object detection will be run')
     parser.add_argument('-v', '--verbose', action='store_true', help='increase output verbosity')
     parser.add_argument('-ml', '--multi_lingual', action='store_true', help='use the multi-lingual model')
-    parser.add_argument('-yolo', '--yolo', action='store_true', help='to use yolo models for object detection')
     parser.add_argument('-vf', '--visionfreq', type=int, default=5, help='Time betwee frame captures for the OpenAI vision model')
     parser.add_argument('--vision', default=True, help='to use vision model for object detection')
     
@@ -526,16 +520,8 @@ def getParser():
         if args.verbose:
             print("Running object detection")
         
-        if args.yolo:
-            # We need to run the object detection in a separate thread to avoid blocking the main thread
-            run_yolo_in_subprocess(verbose, device,vision)   
-
-        else:
-            # Run the objectMedia.py script
-            thread1 = threading.Thread(target=objectDetection)
-            thread1.start()
-            # subprocess.run(['python3', 'models/objectMedia.py'], stdout=subprocess.DEVNULL, stderr=subprocess.STDOUT)
-
+        # We need to run the object detection in a separate thread to avoid blocking the main thread
+        run_yolo_in_subprocess(verbose, device,vision)   
     IP = args.ip
 
     return IP, name, prompt, temperature, max_tokens, top_p, language, final_read, multi_lingual
