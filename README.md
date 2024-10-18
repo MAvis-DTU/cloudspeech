@@ -60,3 +60,9 @@ python3 cloudspeech.py --temperature 0.9 --final_read True
 Object detection functionality requires a correctly set up MediaPipe environment. Ensure that MediaPipe is configured before enabling object detection in this script.
 
 Hopefully, this README helps provide clarity on how to utilize and configure `cloudspeech.py` effectively for various interactive voice applications.
+
+
+#### More info
+When installing portaudio and pyaduio, you might get a name_space warning. You can install sounddevice using pip install sounddevice and then importing sounddevice immediately before importin pyaudio for a quick fix (found here: https://github.com/OpenInterpreter/01/issues/68)
+
+Also, for MPS to work in yolo make sure to run export PYTORCH_ENABLE_MPS_FALLBACK=1 for a temporary fallback to cpu for any functions not implemented for the silicon processor. To make the fallback permanent and global add the line to your '.zshrc' found in 'users/user' (the file is hidden by default, but you can reveal hidden files in the finder by pressing 'cmd+shift+.').

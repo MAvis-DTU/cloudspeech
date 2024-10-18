@@ -3,16 +3,80 @@ import cv2
 import numpy as np
 from models.yolo_model import ObjectDetect
 import time
+import os
+from openai import OpenAI
+import base64
+import requests
+import threading
 
 class VideoStreamCustom:
-    def __init__(self, model_name=None, object_detect=True, yolo_threshold=0.3, device='cpu', verbose=False) -> None:
+    def __init__(self, model_name=None, object_detect=True, yolo_threshold=0.3, device='cpu', vision=True, verbose=False) -> None:
         self.object_detect = object_detect
         self.yolo_threshold = yolo_threshold
         self.model_name = model_name
+        self.vision = vision
+
+        # Load the OpenAI API key from the file
+        with open('credentials/openaiKey.txt', 'r') as f:
+            os.environ['gpt4key'] = f.read()
+
+        # Set the API key
+        self.api_key = os.getenv("gpt4key")
+
+        if device == 'mps':
+            #set fallback to 1 to enable MPS
+            print("MPS enabled")
+            if verbose:
+                print("-----------------")
+                print("MPS enabled")
+
         if object_detect:
             self.OD = ObjectDetect(model_name, yolo_threshold=yolo_threshold, device=device, verbose=False)
 
+    def analyze_image_with_openai(self,image_path="vision_output.jpg"):
+        # Function to encode the image
+        def encode_image(image_path="vision_output.jpg"):
+            with open(image_path, "rb") as image_file:
+                return base64.b64encode(image_file.read()).decode('utf-8')
 
+        # Encode the image
+        base64_image = encode_image(image_path)
+
+        headers = {
+            "Content-Type": "application/json",
+            "Authorization": f"Bearer {self.api_key}"
+        }
+
+        payload = {
+            "model": "gpt-4o-mini",
+            "messages": [
+                {
+                    "role": "user",
+                    "content": [
+                        {
+                            "type": "text",
+                            "text": "Give a description of the environment"
+                        },
+                        {
+                            "type": "image_url",
+                            "image_url": {
+                                "url": f"data:image/jpeg;base64,{base64_image}"
+                            }
+                        }
+                    ]
+                }
+            ],
+            "max_tokens": 300
+        } 
+        response = requests.post("https://api.openai.com/v1/chat/completions", headers=headers, json=payload)
+
+        # save the response to a text file vision.txt
+        with open("vision.txt", "w") as f:
+            f.write("A description of the environment:\n\n" +response.json()['choices'][0]['message']['content'])
+            f.close()
+
+        return response.json()
+    
     def plot_boxes(self, results, frame):
         """
         Takes a frame and its results as input, and plots the bounding boxes and label on to the frame.
@@ -76,6 +140,17 @@ class VideoStreamCustom:
                 
                 # Flip the image horizontally
                 image = cv2.flip(image, 1)
+                # every 5 seconds save the frame to the disk 
+                if time.time() - start_time > 5:
+                    cv2.imwrite(f"vision_output.jpg", image)
+                    start_time = time.time()
+                    if self.vision==True:
+                        # run self.analyze_image_with_openai() in a thread
+                        # to avoid blocking the main thread
+                        thread1 = threading.Thread(target=self.analyze_image_with_openai)
+                        thread1.start()
+
+                        
                 # Resize image to 0.8 of the original size
                 # image = cv2.resize(image, (0, 0), fx=0.8, fy=0.8)
                 results = self.OD.score_frame(image)  # This takes a lot of time if ran on CPU

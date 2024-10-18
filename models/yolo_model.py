@@ -2,6 +2,7 @@ from __init__ import *
 import torch
 from ultralytics import YOLO
 
+
 class ObjectDetect:
     def __init__(self, model_name, yolo_threshold=0.5, device="cuda", verbose=False):
         self.device = device

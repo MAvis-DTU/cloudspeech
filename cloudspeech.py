@@ -87,6 +87,28 @@ voice_select = 1
 
 set_api_key("cb4a60d9eaf1ad9514b055a3be1fc3b6")
 
+def run_yolo_in_subprocess(verbose, device,vision):
+    # Path to the yolo_detection.py script
+    script_path = "models/objectYolo.py"
+
+    # Build the command with arguments to pass to the subprocess
+    command = [
+        "python3",  # or "python" depending on your environment
+        script_path,  # The script you want to run
+        "--verbose", str(verbose),
+        "--vision", str(vision),
+        "--device", device
+    ]
+
+    # Set the environment variable for PyTorch MPS fallback
+    env = {**os.environ, "PYTORCH_ENABLE_MPS_FALLBACK": "1"}
+
+    # Run the command as a subprocess with the modified environment
+    process = subprocess.Popen(command, env=env)
+
+    # run the object detection in a separate subprocess
+
+
 def elevenLabsSay(text, IP, gesture_thread=None, multi_lingual=False):
 
     if voice_select == 0 and IP is not None:
@@ -351,7 +373,11 @@ def startConversation(prompt, speaker, temperature, max_tokens, top_p, openaiCli
             with open('objects.txt', 'r') as file:
                 objects = file.read()
 
-            prompt += [{"role": "user", "content": [{"type": "text", "text": human_response + '\n\n' + objects}]}]
+            #TODO: Add the vision description to the prompt
+            with open('vision.txt', 'r') as file:
+                vision = file.read()
+
+            prompt += [{"role": "user", "content": [{"type": "text", "text": human_response + '\n\n' + objects + '\n\n' + vision}]}]
 
             if voice_changed:
                 # response = "Certainly! I will change my voice. Is it better now?"
@@ -396,8 +422,12 @@ def getParser():
     parser.add_argument('-v', '--verbose', action='store_true', help='increase output verbosity')
     parser.add_argument('-ml', '--multi_lingual', action='store_true', help='use the multi-lingual model')
     parser.add_argument('-yolo', '--yolo', action='store_true', help='to use yolo models for object detection')
+    parser.add_argument('-vf', '--visionfreq', type=int, default=5, help='Time betwee frame captures for the OpenAI vision model')
+    parser.add_argument('--vision', default=True, help='to use vision model for object detection')
+    
     # parse the arguments
     args = parser.parse_args()
+
     # get the variables from the arguments
     name = args.name
     prompt = args.prompt
@@ -411,6 +441,7 @@ def getParser():
     global verbose
     verbose = args.verbose
     device = args.device
+    vision = args.vision
     multi_lingual = args.multi_lingual
     
     if language == 'da-DK':
@@ -422,8 +453,8 @@ def getParser():
         
         if args.yolo:
             # We need to run the object detection in a separate thread to avoid blocking the main thread
-            thread1 = threading.Thread(target=yolo_object_detection, args=("models/yolo11n.pt", True, 0.8, verbose, device))
-            thread1.start()        
+            run_yolo_in_subprocess(verbose, device,vision)   
+
         else:
             # Run the objectMedia.py script
             thread1 = threading.Thread(target=objectDetection)
