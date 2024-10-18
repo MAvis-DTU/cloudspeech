@@ -28,8 +28,12 @@ from __future__ import division
 import time
 
 import sys
+
 from google.cloud import speech
+
+import sounddevice as sd
 import pyaudio
+
 from six.moves import queue
 import keyboard
 
