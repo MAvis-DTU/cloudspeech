@@ -40,6 +40,7 @@ import os
 import time
 import random
 import threading
+from threading import Thread
 import signal
 import time
 import argparse
@@ -85,10 +86,38 @@ multi_voices = voices()
 global voice_select
 voice_select = 1
 
-set_api_key("cb4a60d9eaf1ad9514b055a3be1fc3b6")
+set_api_key("cb4a60d9eaf1ad9514b055a3be1fc3b6")    
+    
+class GestureThread(Thread):
+    def __init__(self, IP, split_sentences, gesture_numbers):
+        Thread.__init__(self)
+        self.IP = IP
+        self.split_sentences = split_sentences
+        self.gesture_numbers = gesture_numbers
+        self.p = None
+    
+    def run(self):
+        try:
+            self.p = subprocess.Popen(['python2', 'robot/nao_gesture.py'], stdout=subprocess.PIPE, stdin=subprocess.PIPE, stderr=subprocess.STDOUT)
+            input_data = bytes(self.IP + '\n' + str(self.split_sentences) + '\n' + str(self.gesture_numbers), encoding="utf-8")
+            
+            # Start a new thread to handle the communicate method
+            communicate_thread = Thread(target=self._communicate, args=(input_data,))
+            communicate_thread.start()
 
+        except subprocess.CalledProcessError as e:
+            print(f"Error : {e.output}")
+        
+    def _communicate(self, input_data):
+        self.p.communicate(input=input_data)
+
+    def terminate(self):
+        if self.p:
+            self.p.terminate()
+            self.p.kill()
+            
+    
 def elevenLabsSay(text, IP, gesture_thread=None, multi_lingual=False):
-
     if voice_select == 0 and IP is not None:
         assert IP is not None, "IP address is not specified, and thus the robot cannot speak. voice_select 0 is not possible."
         say(IP, text, "Pepper", gesture_thread=gesture_thread)
@@ -98,7 +127,6 @@ def elevenLabsSay(text, IP, gesture_thread=None, multi_lingual=False):
             print("-----------------")
             print("Generate Audio: START")
             start = time.time()
-        
         if multi_lingual:
             audio = generate(text=text, voice=multi_voices[7], model="eleven_multilingual_v2")
         else:
@@ -110,24 +138,11 @@ def elevenLabsSay(text, IP, gesture_thread=None, multi_lingual=False):
             print("Generate Audio: END\n")
         # Create gestures if the robot is connected
         if gesture_thread is not None:
-            gesture_thread.start()
+            gesture_thread.run()
             play(audio)
-            gesture_thread.join()
+            gesture_thread.terminate()
         else:
             play(audio)
-    
-
-
-def get_duration(audio):
-    """
-    Takes an audio file in bytes and finds an approximate duration
-
-    duration (s) = (size (in bytes) X 8) / Bitrate (in kbps)
-    
-    Default bitrate from elevenlabs is 192kbps for Creator, Pro, Scale, Business.
-    """
-    # get audio size in bytes    
-    return ((audio.__sizeof__() * 8)/192)/1000
 
 
 def get_gestures(text, openaiClient):
@@ -137,7 +152,7 @@ def get_gestures(text, openaiClient):
     prompt = [
         {
         "role": "system",
-        "content": "Given a paragraph of text, annotate every 20 words in that paragraph with the most appropriate tag. You should always give a tag no matter what. The tags are to be placed in square brackets. \n\nFollowing tags are available:\n0. Happy\n1. Sad\n2. Affirmative\n3. Unfamiliar\n4. Thinking\n5. Explain\n\nIt should be on the form:\n\nHi, [5] have you heard about the recent news? They are [1] quite horrific to say the least."
+        "content": "Given a paragraph of text, annotate every 15 words in that paragraph with the most appropriate tag. You should always give a tag no matter what. The tags are to be placed in square brackets. \n\nFollowing tags are available:\n0. Happy\n1. Sad\n2. Affirmative\n3. Unfamiliar\n4. Thinking\n5. Explain\n\nIt should be on the form:\n\nHi, [5] have you heard about the recent news? They are [1] quite horrific to say the least."
         },
         {
         "role": "user",
@@ -262,15 +277,13 @@ def remove_incomplete_sentence(text):
 def conditional_say(pepper_response, bot_name, IP, openaiClient, multi_lingual):
     if IP:
         split_sentences, gesture_numbers = get_gestures(pepper_response, openaiClient)
-        gesture_thread = threading.Thread(target=nao_gesture, args=(IP, split_sentences, gesture_numbers))
-        # gesture_thread.start()
+        gesture_thread = GestureThread(IP, split_sentences, gesture_numbers)
         if voice_select == 0 and not multi_lingual:
             say(IP, pepper_response, bot_name, gesture_thread)
         else:
             elevenLabsSay(pepper_response, IP, gesture_thread, multi_lingual=multi_lingual)
     else:
         elevenLabsSay(pepper_response, IP, multi_lingual=multi_lingual)
-        
 
 
 def getName(main_prompt, temperature, openaiClient, IP, language='en-US', robot_name='Pepper', multi_lingual=True): 
@@ -307,7 +320,7 @@ def getName(main_prompt, temperature, openaiClient, IP, language='en-US', robot_
                                           model="gpt-4-turbo")
 
             if '-nothing' in pepper_response.lower() or '-ingenting' in pepper_response.lower():
-                prompt = [{"role": "system", "content": [{"type": "text", "text": main_prompt + '\n\n' + f"You missed the other person's name, and you should ask again. Be kind and understanding. Answer back in the correct language."}]}]
+                prompt = [{"role": "system", "content": [{"type": "text", "text": prompt + '\n\n' + f"You missed the other person's name, and you should ask again. Be kind and understanding. Answer back in the correct language."}]}]
                 pepper_response = getResponse(prompt, temperature=temperature, max_tokens=10, top_p=top_p, openaiClient=openaiClient)
                 # elevenLabsSay(pepper_response, IP, multi_lingual=multi_lingual)
                 conditional_say(pepper_response, robot_name, IP, openaiClient=openaiClient, multi_lingual=multi_lingual)
