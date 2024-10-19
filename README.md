@@ -63,6 +63,9 @@ Hopefully, this README helps provide clarity on how to utilize and configure `cl
 
 
 #### More info
-When installing portaudio and pyaduio, you might get a name_space warning. You can install sounddevice using pip install sounddevice and then importing sounddevice immediately before importin pyaudio for a quick fix (found here: https://github.com/OpenInterpreter/01/issues/68)
+- When installing portaudio and pyaduio, you might get a name_space warning. You can install sounddevice using pip install sounddevice and then importing sounddevice immediately before importin pyaudio for a quick fix (found here: https://github.com/OpenInterpreter/01/issues/68)
 
-Also, for MPS to work in yolo make sure to run export PYTORCH_ENABLE_MPS_FALLBACK=1 for a temporary fallback to cpu for any functions not implemented for the silicon processor. To make the fallback permanent and global add the line to your '.zshrc' found in 'users/user' (the file is hidden by default, but you can reveal hidden files in the finder by pressing 'cmd+shift+.').
+- Also, for MPS to work in yolo make sure to run export PYTORCH_ENABLE_MPS_FALLBACK=1 for a temporary fallback to cpu for any functions not implemented for the silicon processor. To make the fallback permanent and global add the line to your '.zshrc' found in 'users/user' (the file is hidden by default, but you can reveal hidden files in the finder by pressing 'cmd+shift+.').
+
+- The quickets way to share an conda env between group members is by using .yml files that can be sent and created locally by 'conda env create -f environment.yml -n name_for_env'. Remember to check that dependencies are working before sending an .yml file to a friend since these can cause headaches. Anecdote: Mediapipe and Google-cloud-speech will both try to create non-compatible versions of the protobuf library (if both are not completely up to date).
+- 
