@@ -10,7 +10,7 @@ import requests
 import threading
 
 class VideoStreamCustom:
-    def __init__(self, model_name=None, object_detect=True, yolo_threshold=0.3, device='cpu', vision=True, verbose=False) -> None:
+    def __init__(self, model_name=None, object_detect=True, yolo_threshold=0.3, device='cpu', vision=False, verbose=False) -> None:
         self.object_detect = object_detect
         self.yolo_threshold = yolo_threshold
         self.model_name = model_name
@@ -144,7 +144,7 @@ class VideoStreamCustom:
                 if time.time() - start_time > 5:
                     cv2.imwrite(f"vision_output.jpg", image)
                     start_time = time.time()
-                    if self.vision==True:
+                    if self.vision:
                         # run self.analyze_image_with_openai() in a thread
                         # to avoid blocking the main thread
                         thread1 = threading.Thread(target=self.analyze_image_with_openai)
