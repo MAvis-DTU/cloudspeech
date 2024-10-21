@@ -130,6 +130,7 @@ class VideoStreamCustom:
     def __call__(self, video):
         frame_count = 0
         start_time = time.time()
+        vision_start_time = time.time()
         while True:
             try:
                 success, image = video.read()
@@ -141,9 +142,9 @@ class VideoStreamCustom:
                 # Flip the image horizontally
                 image = cv2.flip(image, 1)
                 # every 5 seconds save the frame to the disk 
-                if time.time() - start_time > 5:
+                if time.time() - vision_start_time > 5:
                     cv2.imwrite(f"vision_output.jpg", image)
-                    start_time = time.time()
+                    vision_start_time = time.time()
                     if self.vision:
                         # run self.analyze_image_with_openai() in a thread
                         # to avoid blocking the main thread
@@ -176,8 +177,8 @@ class VideoStreamCustom:
                 cv2.putText(image, f'FPS: {fps:.2f}', (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 0, 0), 2, cv2.LINE_AA)
                 cv2.imshow('Video', image)
 
-                end_time = time.time()  # Record the end time
-                frame_time = end_time - start_time
+                # end_time = time.time()  # Record the end time
+                # frame_time = end_time - start_time
                 # print(f"Time between frames: {frame_time:.4f} seconds")
 
                 if cv2.waitKey(1) & 0xFF == ord('q'):

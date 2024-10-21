@@ -276,7 +276,7 @@ def getConfig(language_code = "en-US"):
     )
 
     streaming_config = speech.StreamingRecognitionConfig(
-        config=config, interim_results=True, single_utterance=True 
+        config=config, interim_results=True, single_utterance=False 
     )
     #streaming_config.VoiceActivityTimeout(speech_start_timeout = 10)
 
