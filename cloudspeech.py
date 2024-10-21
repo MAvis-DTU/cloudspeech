@@ -397,7 +397,7 @@ def getName(main_prompt, temperature, openaiClient, IP, language='en-US', robot_
 
             if '-nothing' in pepper_response.lower() or '-ingenting' in pepper_response.lower():
                 prompt = [{"role": "system", "content": [{"type": "text", "text": main_prompt + '\n\n' + f"You missed the other person's name, and you should ask again. Be kind and understanding. The response should be in {language}."}]}]
-                pepper_response = getResponse(prompt, temperature=temperature, max_tokens=10, top_p=top_p, openaiClient=openaiClient)
+                pepper_response = getResponse(prompt, temperature=temperature, max_tokens=255, top_p=top_p, openaiClient=openaiClient)
                 # elevenLabsSay(pepper_response, IP, multi_lingual=multi_lingual)
                 conditional_say(pepper_response, robot_name, IP, openaiClient=openaiClient, multi_lingual=multi_lingual)
                 print('Pepper: ' + pepper_response)
@@ -454,7 +454,7 @@ def startConversation(prompt, speaker, temperature, max_tokens, top_p, openaiCli
             if vision:
                 with open('vision.txt', 'r') as file:
                     vision = file.read()
-                prompt += [{"role": "user", "content": [{"type": "text", "text": human_response + '\n\n' + objects + '\n\n' + vision}]}]
+                prompt += [{"role": "user", "content": [{"type": "text", "text": human_response + '\n\n' + objects + '\n\n' "This is your own descripton of what you see with your eyes: " + vision}]}]
             else:
                 prompt += [{"role": "user", "content": [{"type": "text", "text": human_response + '\n\n' + objects}]}]
 
