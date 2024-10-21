@@ -182,7 +182,8 @@ class VideoStreamCustom:
                 elapsed_update_time = time.time() - os.path.getmtime("vision.txt")
                 fps = frame_count / elapsed_time
                 cv2.putText(image, f'FPS: {fps:.2f}', (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 0, 0), 2, cv2.LINE_AA)
-                cv2.putText(image, f'Since update: {elapsed_update_time:.0f}s', (10, 60), cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 0, 0), 2, cv2.LINE_AA)
+                if self.vision:
+                    cv2.putText(image, f'Since update: {elapsed_update_time:.0f}s', (10, 60), cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 0, 0), 2, cv2.LINE_AA)
                 
                 cv2.imshow('Video', image)
 

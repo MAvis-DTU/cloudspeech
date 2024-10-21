@@ -1,9 +1,4 @@
 ### README.md for cloudspeech.py
-# TODO
-- [X] Fix IP input to nao scripts
-- [X] Create verbose option
-- [ ] Test nao scripts on robot
-- [ ] Configure better object-detection with a new model (look into YOLO for macos).
 
 #### Introduction
 `cloudspeech.py` is a Python script utilizing Google Cloud Speech-to-Text, OpenAI's GPT models, and ElevenLabs' voice synthesis for interactive voice-enabled applications with a Softbanks Robotics Pepper Robot. This script incorporates functionality to interface with Pepper, execute voice streaming with real-time response using AI models, and perform object detection leveraging MediaPipe (provided MediaPipe is configured in the environment).
@@ -54,20 +49,25 @@ You can customize the behavior of the script by passing the following arguments:
 - `--init_voice`: the initial voice used (either Pepper or elevenlab voices)
 - `--device`: The device (`cpu`, `cuda` or `mps`) yolo detection is run with.
 - `-od` or `-object_detection`: If specified it will run with object detection and start a video-stream.
+- `--camera`: The index of the camera used for object-detection.
 - `-v` or `-verbose`: If specified prints verbose statements for each step in the process.
 - `-ml` or `-multi_lingual`: Whether to use multi-lingual elevenlabs model
 - `--vision`: Specify if vision-model (o-model) should be used to describe the environment.
 - `-vf` or `-visionfreq`: The frequency (time between) of which the GPT O-model is queried by.
+- `-pa` or `--process_audio`: Whether to apply post-processing on the audio generated from ElevenLabs.
 
 **NOTE** when the language is set different from "en-US" or "en-UK", multi_lingual is automatically set to True no matter if it has been specified otherwise in the CLI. 
 
+**NOTE** it is not possible to change voice while `running` with `-ml`. It is however possible to change the used voice with `-ml` by specifying a different `--init_voice` index.
+
 #### Example Command
 ```bash
-python3 cloudspeech.py --temperature 0.9 --final_read True
+python3 cloudspeech.py -v -od -ml --device mps --vision --visionfreq 5 --init_voice 7 --name Thomas --ip 192.168.1.152
 ```
+The command runs cloudspeech with object-detection updating the vision description for every 5 seconds. It uses the multilingual TTS model from elevenlabs with voice 7. If skips the getName part of the conversation as the name is specified. It also runs with the robot since a specific IP is given in the CLI.
 
 #### Object Detection Note
-Object detection functionality requires a correctly set up MediaPipe environment. Ensure that MediaPipe is configured before enabling object detection in this script.
+Object detection functionality requires a correctly set up environment that supports the use of Ultralyics. Make sure that if on MacOS you are able to run with --device mps if a GPU is available.
 
 Hopefully, this README helps provide clarity on how to utilize and configure `cloudspeech.py` effectively for various interactive voice applications.
 
