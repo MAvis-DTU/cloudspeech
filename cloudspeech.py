@@ -116,7 +116,6 @@ class GestureThread(Thread):
             self.p.terminate()
             self.p.kill()
             
-    
 
 def change_pitch(audio_bytes, pitch_shift_steps):
     # Step 1: Read MP3 bytes using pydub and convert to WAV format in-memory
@@ -469,18 +468,13 @@ def startConversation(prompt, speaker, temperature, max_tokens, top_p, openaiCli
     return 0
 
 def getParser():
-
-    # get prompt from file 
-    with open('prompt.txt', 'r') as file:
-        prompt = file.read()
-
      # initialize argparser 
     parser = argparse.ArgumentParser(description='Process some integers.')
 
     # write an argparser for all variables 
     parser.add_argument('--name', type=str, default='Human', help='name of the person you are talking to')
     parser.add_argument('--ip', type=str, default=None, help='IP address of the robot. (default: %(default)s)')
-    parser.add_argument('--prompt', type=str, default=prompt, help='prompt to start the conversation')
+    parser.add_argument('--prompt', type=str, default="prompt.txt", help='Path to prompt to start the conversation')
     parser.add_argument('--temperature', type=float, default=0.7, help='temperature for the GPT model, float between 0 and 2')
     parser.add_argument('--max_tokens', type=int, default=300, help='max tokens for the GPT model')
     parser.add_argument('--top_p', type=float, default=1, help='top p for the GPT model')
@@ -497,9 +491,13 @@ def getParser():
     # parse the arguments
     args = parser.parse_args()
 
+    
+    # get prompt from file 
+    with open(args.prompt, 'r') as file:
+        prompt = file.read()
+        
     # get the variables from the arguments
     name = args.name
-    prompt = args.prompt
     temperature = args.temperature
     max_tokens = args.max_tokens
     top_p = args.top_p
