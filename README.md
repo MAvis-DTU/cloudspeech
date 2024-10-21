@@ -44,7 +44,7 @@ You can customize the behavior of the script by passing the following arguments:
 - `--temperature`: Temperature for GPT model inference (a float between 0 and 2, default 0.7).
 - `--max_tokens`: Maximum number of tokens for GPT model inference (default 300).
 - `--top_p`: Top probability for GPT model token selection (default 1).
-- `--language`: Language code for speech recognition (e.g., "en-US", "en-GB"), default "en-US".
+- `--language`: Language code for speech recognition (e.g., "en-US", "en-GB"), default "da-DK".
 - `--final_read`: Boolean to decide if the final message should be read aloud by the robot (default False).
 - `--init_voice`: the initial voice used (either Pepper or elevenlab voices)
 - `--device`: The device (`cpu`, `cuda` or `mps`) yolo detection is run with.
