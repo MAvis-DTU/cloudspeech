@@ -41,7 +41,7 @@ import time
 from threading import Thread
 import time
 import argparse
-
+import sys
 from googlestream import *
 
 from elevenlabs import voices, generate, play, set_api_key
@@ -151,7 +151,7 @@ def change_pitch(audio_bytes, pitch_shift_steps):
     return mp3_shifted_io.read()
 set_api_key("cb4a60d9eaf1ad9514b055a3be1fc3b6")
 
-def run_yolo_in_subprocess(verbose, device, vision):
+def run_yolo_in_subprocess(verbose, device, vision, vision_freq):
     # Path to the yolo_detection.py script
     script_path = "models/objectYolo.py"
 
@@ -162,23 +162,27 @@ def run_yolo_in_subprocess(verbose, device, vision):
             script_path,  # The script you want to run
             "--verbose", str(verbose),
             "--vision",
-            "--device", device
+            "--device", device,
+            "--vision_freq", str(vision_freq)
         ]
     else:
         command = [
             "python",  # or "python" depending on your environment
             script_path,  # The script you want to run
             "--verbose", str(verbose),
-            "--device", device
+            "--device", device,
+            "--vision_freq", str(vision_freq)
         ]
-
-    # Set the environment variable for PyTorch MPS fallback
-    env = {**os.environ, "PYTORCH_ENABLE_MPS_FALLBACK": "1"}
-
-    # Run the command as a subprocess with the modified environment
-    process = subprocess.Popen(command, env=env)
-
     # run the object detection in a separate subprocess
+        
+    if sys.platform == "win32":
+        process = subprocess.Popen(command)
+    else:
+        # Set the environment variable for PyTorch MPS fallback
+        env = {**os.environ, "PYTORCH_ENABLE_MPS_FALLBACK": "1"}
+
+        # Run the command as a subprocess with the modified environment
+        process = subprocess.Popen(command, env=env)
 
 
 def elevenLabsSay(text, IP, gesture_thread=None, multi_lingual=False):
@@ -495,8 +499,8 @@ def getParser():
     parser.add_argument('-od', '--object_detection', action='store_true', help='if true the object detection will be run')
     parser.add_argument('-v', '--verbose', action='store_true', help='increase output verbosity')
     parser.add_argument('-ml', '--multi_lingual', action='store_true', help='use the multi-lingual model')
-    parser.add_argument('-vf', '--visionfreq', type=int, default=5, help='Time betwee frame captures for the OpenAI vision model')
     parser.add_argument('--vision', action='store_true', help='Enable vision model to analyze the image')
+    parser.add_argument('-vf', '--visionfreq', type=int, default=5, help='Time betwee frame captures for the OpenAI vision model')
     
     # parse the arguments
     args = parser.parse_args()
@@ -520,8 +524,9 @@ def getParser():
     device = args.device
     vision = args.vision
     multi_lingual = args.multi_lingual
+    vision_freq = args.visionfreq
     
-    if language == 'da-DK':
+    if language != 'en-UK' or language != 'en-US':
         multi_lingual = True
         
     if args.object_detection:
@@ -529,14 +534,14 @@ def getParser():
             print("Running object detection")
         
         # We need to run the object detection in a separate thread to avoid blocking the main thread
-        run_yolo_in_subprocess(verbose, device, vision)   
+        run_yolo_in_subprocess(verbose, device, vision, vision_freq)   
     IP = args.ip
 
     return IP, name, prompt, temperature, max_tokens, top_p, language, final_read, multi_lingual, vision
 
 if __name__ == "__main__":
     # get the arguments
-    IP, name, prompt, temperature, max_tokens, top_p, language, final_read, multi_lingual,vision = getParser()
+    IP, name, prompt, temperature, max_tokens, top_p, language, final_read, multi_lingual, vision = getParser()
     global voice_descriptions
     if IP is not None:
         IP = f"tcp://{IP}:9559"

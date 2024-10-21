@@ -10,11 +10,18 @@ import requests
 import threading
 
 class VideoStreamCustom:
-    def __init__(self, model_name=None, object_detect=True, yolo_threshold=0.3, device='cpu', vision=False, verbose=False) -> None:
+    def __init__(self, model_name=None, 
+                       object_detect=True, 
+                       yolo_threshold=0.3, 
+                       device='cpu', 
+                       vision=False, 
+                       verbose=False, 
+                       vision_freq=5) -> None:
         self.object_detect = object_detect
         self.yolo_threshold = yolo_threshold
         self.model_name = model_name
         self.vision = vision
+        self.vision_freq = vision_freq
 
         # Load the OpenAI API key from the file
         with open('credentials/openaiKey.txt', 'r') as f:
@@ -142,7 +149,7 @@ class VideoStreamCustom:
                 # Flip the image horizontally
                 image = cv2.flip(image, 1)
                 # every 5 seconds save the frame to the disk 
-                if time.time() - vision_start_time > 5:
+                if time.time() - vision_start_time > self.vision_freq:
                     cv2.imwrite(f"vision_output.jpg", image)
                     vision_start_time = time.time()
                     if self.vision:
@@ -150,8 +157,7 @@ class VideoStreamCustom:
                         # to avoid blocking the main thread
                         thread1 = threading.Thread(target=self.analyze_image_with_openai)
                         thread1.start()
-
-                        
+                
                 # Resize image to 0.8 of the original size
                 # image = cv2.resize(image, (0, 0), fx=0.8, fy=0.8)
                 results = self.OD.score_frame(image)  # This takes a lot of time if ran on CPU
@@ -173,8 +179,11 @@ class VideoStreamCustom:
                     
                 frame_count += 1
                 elapsed_time = time.time() - start_time
+                elapsed_update_time = time.time() - os.path.getmtime("vision.txt")
                 fps = frame_count / elapsed_time
                 cv2.putText(image, f'FPS: {fps:.2f}', (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 0, 0), 2, cv2.LINE_AA)
+                cv2.putText(image, f'Since update: {elapsed_update_time:.0f}s', (10, 60), cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 0, 0), 2, cv2.LINE_AA)
+                
                 cv2.imshow('Video', image)
 
                 # end_time = time.time()  # Record the end time

@@ -44,12 +44,22 @@ python3 cloudspeech.py [arguments]
 #### Arguments
 You can customize the behavior of the script by passing the following arguments:
 - `--name`: Name of the person to converse with (default "Human").
-- `--prompt`: Initial prompt for starting the conversation (default is read from `prompt.txt`).
+- `--ip`: The IP address to the Pepper robot that you wish to connect to. (**NOTE** Default is `None`).
+- `--prompt`: Path to the initial prompt for starting the conversation (default path is `prompt.txt`).
 - `--temperature`: Temperature for GPT model inference (a float between 0 and 2, default 0.7).
 - `--max_tokens`: Maximum number of tokens for GPT model inference (default 300).
 - `--top_p`: Top probability for GPT model token selection (default 1).
 - `--language`: Language code for speech recognition (e.g., "en-US", "en-GB"), default "en-US".
 - `--final_read`: Boolean to decide if the final message should be read aloud by the robot (default False).
+- `--init_voice`: the initial voice used (either Pepper or elevenlab voices)
+- `--device`: The device (`cpu`, `cuda` or `mps`) yolo detection is run with.
+- `-od` or `-object_detection`: If specified it will run with object detection and start a video-stream.
+- `-v` or `-verbose`: If specified prints verbose statements for each step in the process.
+- `-ml` or `-multi_lingual`: Whether to use multi-lingual elevenlabs model
+- `--vision`: Specify if vision-model (o-model) should be used to describe the environment.
+- `-vf` or `-visionfreq`: The frequency (time between) of which the GPT O-model is queried by.
+
+**NOTE** when the language is set different from "en-US" or "en-UK", multi_lingual is automatically set to True no matter if it has been specified otherwise in the CLI. 
 
 #### Example Command
 ```bash

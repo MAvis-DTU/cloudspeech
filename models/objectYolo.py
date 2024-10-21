@@ -4,8 +4,8 @@ from models.video_stream import VideoStreamCustom
 import argparse
 
 
-def yolo_object_detection(model_name, object_detect=True, yolo_threshold=0.8, vision=False, verbose=False, device='cpu'):
-    video_stream = VideoStreamCustom(model_name=model_name, object_detect=object_detect, device=device, yolo_threshold=yolo_threshold, vision=vision, verbose=verbose)
+def yolo_object_detection(model_name, object_detect=True, yolo_threshold=0.8, vision=False, verbose=False, device='cpu', vision_freq=5):
+    video_stream = VideoStreamCustom(model_name=model_name, object_detect=object_detect, device=device, yolo_threshold=yolo_threshold, vision=vision, verbose=verbose, vision_freq=vision_freq)
     cap = cv2.VideoCapture(0)
     video_stream(cap)
 
@@ -19,7 +19,7 @@ if __name__ == "__main__":
     parser.add_argument('--verbose', type=bool, default=False, help='Enable verbose logging')
     parser.add_argument('--vision', action='store_true', help='Enable vision model to analyze the image')
     parser.add_argument('--device', type=str, default='cpu', help='The device to run the od on ps(cpu or mps for MacOS)')
-
+    parser.add_argument('--vision_freq', type=int, default=5, help='Frequency of video frames to process')
     # Parse the arguments
     args = parser.parse_args()
 
@@ -30,5 +30,6 @@ if __name__ == "__main__":
         yolo_threshold=args.threshold,
         vision=args.vision,
         verbose=args.verbose,
-        device=args.device
+        device=args.device,
+        vision_freq=args.vision_freq
     )
