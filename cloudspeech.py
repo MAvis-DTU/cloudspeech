@@ -151,18 +151,26 @@ def change_pitch(audio_bytes, pitch_shift_steps):
     return mp3_shifted_io.read()
 set_api_key("cb4a60d9eaf1ad9514b055a3be1fc3b6")
 
-def run_yolo_in_subprocess(verbose, device,vision):
+def run_yolo_in_subprocess(verbose, device, vision):
     # Path to the yolo_detection.py script
     script_path = "models/objectYolo.py"
 
     # Build the command with arguments to pass to the subprocess
-    command = [
-        "python3",  # or "python" depending on your environment
-        script_path,  # The script you want to run
-        "--verbose", str(verbose),
-        "--vision", str(vision),
-        "--device", device
-    ]
+    if vision: 
+        command = [
+            "python",  # or "python" depending on your environment
+            script_path,  # The script you want to run
+            "--verbose", str(verbose),
+            "--vision",
+            "--device", device
+        ]
+    else:
+        command = [
+            "python",  # or "python" depending on your environment
+            script_path,  # The script you want to run
+            "--verbose", str(verbose),
+            "--device", device
+        ]
 
     # Set the environment variable for PyTorch MPS fallback
     env = {**os.environ, "PYTORCH_ENABLE_MPS_FALLBACK": "1"}
@@ -408,7 +416,7 @@ def getName(main_prompt, temperature, openaiClient, IP, language='en-US', robot_
                 return name, pepper_response
 
 
-def startConversation(prompt, speaker, temperature, max_tokens, top_p, openaiClient, IP, language='en-US', multi_lingual=True):
+def startConversation(prompt, speaker, temperature, max_tokens, top_p, openaiClient, IP, language='en-US', multi_lingual=True,vision=True):
     # get the config for the google speech api
     RATE, CHUNK, client, streaming_config = getConfig(language_code=language)
     voice_changed = 0
@@ -442,11 +450,13 @@ def startConversation(prompt, speaker, temperature, max_tokens, top_p, openaiCli
             with open('objects.txt', 'r') as file:
                 objects = file.read()
 
-            #TODO: Add the vision description to the prompt
-            with open('vision.txt', 'r') as file:
-                vision = file.read()
-
-            prompt += [{"role": "user", "content": [{"type": "text", "text": human_response + '\n\n' + objects + '\n\n' + vision}]}]
+            # fetch the string from vision.txt if vision is enabled
+            if vision:
+                with open('vision.txt', 'r') as file:
+                    vision = file.read()
+                prompt += [{"role": "user", "content": [{"type": "text", "text": human_response + '\n\n' + objects + '\n\n' + vision}]}]
+            else:
+                prompt += [{"role": "user", "content": [{"type": "text", "text": human_response + '\n\n' + objects}]}]
 
             if voice_changed:
                 # response = "Certainly! I will change my voice. Is it better now?"
@@ -486,7 +496,7 @@ def getParser():
     parser.add_argument('-v', '--verbose', action='store_true', help='increase output verbosity')
     parser.add_argument('-ml', '--multi_lingual', action='store_true', help='use the multi-lingual model')
     parser.add_argument('-vf', '--visionfreq', type=int, default=5, help='Time betwee frame captures for the OpenAI vision model')
-    parser.add_argument('--vision', default=True, help='to use vision model for object detection')
+    parser.add_argument('--vision', action='store_true', help='Enable vision model to analyze the image')
     
     # parse the arguments
     args = parser.parse_args()
@@ -519,14 +529,14 @@ def getParser():
             print("Running object detection")
         
         # We need to run the object detection in a separate thread to avoid blocking the main thread
-        run_yolo_in_subprocess(verbose, device,vision)   
+        run_yolo_in_subprocess(verbose, device, vision)   
     IP = args.ip
 
-    return IP, name, prompt, temperature, max_tokens, top_p, language, final_read, multi_lingual
+    return IP, name, prompt, temperature, max_tokens, top_p, language, final_read, multi_lingual, vision
 
 if __name__ == "__main__":
     # get the arguments
-    IP, name, prompt, temperature, max_tokens, top_p, language, final_read, multi_lingual = getParser()
+    IP, name, prompt, temperature, max_tokens, top_p, language, final_read, multi_lingual,vision = getParser()
     global voice_descriptions
     if IP is not None:
         IP = f"tcp://{IP}:9559"
@@ -559,5 +569,5 @@ if __name__ == "__main__":
     else:
         prompt = [{"role": "system", "content": prompt}, {"role": "assistant", "content": [{"type": "text", "text": ""}]}]
 
-    startConversation(prompt, name, temperature=temperature, max_tokens=max_tokens, top_p=top_p, language=language, openaiClient=openaiClient, IP=IP, multi_lingual=multi_lingual)
+    startConversation(prompt, name, temperature=temperature, max_tokens=max_tokens, top_p=top_p, language=language, openaiClient=openaiClient, IP=IP, multi_lingual=multi_lingual,vision=vision)
     print("Successfully exited...")
