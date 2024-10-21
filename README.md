@@ -62,7 +62,7 @@ You can customize the behavior of the script by passing the following arguments:
 
 #### Example Command
 ```bash
-python3 cloudspeech.py -v -od -ml --device mps --vision --visionfreq 5 --init_voice 7 --name Thomas --ip 192.168.1.152
+python3 cloudspeech.py -v -od -ml --device mps --vision --visionfreq 5 --camera 0 --init_voice 7 --name Thomas --ip 192.168.1.152
 ```
 The command runs cloudspeech with object-detection updating the vision description for every 5 seconds. It uses the multilingual TTS model from elevenlabs with voice 7. If skips the getName part of the conversation as the name is specified. It also runs with the robot since a specific IP is given in the CLI.
 
