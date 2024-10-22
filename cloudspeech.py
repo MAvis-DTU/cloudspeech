@@ -440,17 +440,22 @@ def startConversation(prompt, speaker, temperature, max_tokens, top_p, openaiCli
                 speech.StreamingRecognizeRequest(audio_content=content)
                 for content in audio_generator
             )
-            
             human_response = client.streaming_recognize(streaming_config, requests)
             
             #print('Human: ')
-            human_response = listen_print_loop(speaker, human_response, verbose=verbose)
+            try:
+                human_response = listen_print_loop(speaker, human_response, verbose=verbose)
+            except Exception as e:
+                if verbose:
+                    print(e)
+                continue
+                    
             if verbose:
                 end = time.time()
                 print(f"Time taken: {end-start:.2f} s")
                 print("Listening: END\n")
                 print("-----------------")
-                
+            
             if not multi_lingual:
                 voice_changed = changeVoice('Human:' + human_response, voice=voice_select)
 
