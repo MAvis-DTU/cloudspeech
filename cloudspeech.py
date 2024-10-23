@@ -290,7 +290,7 @@ def getConfig(language_code = "en-US"):
 
     return RATE, CHUNK, client, streaming_config
 
-def getResponse(prompt, temperature, max_tokens, top_p, openaiClient, frequency_penalty=1.75, presence_penalty=1.75, model="gpt-4-turbo"):
+def getResponse(prompt, temperature, max_tokens, top_p, openaiClient, frequency_penalty=1.75, presence_penalty=1.75, model="gpt-4o"): # was gpt-4-turbo
 
     response = openaiClient.chat.completions.create(
                 model=model,

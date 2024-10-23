@@ -79,7 +79,7 @@ class VideoStreamCustom:
 
         # save the response to a text file vision.txt
         with open("vision.txt", "w") as f:
-            f.write("A description of the environment:\n\n" +response.json()['choices'][0]['message']['content'])
+            f.write("This is what you see through your robot eyes:\n\n" +response.json()['choices'][0]['message']['content'])
             f.close()
 
         return response.json()
