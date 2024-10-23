@@ -520,6 +520,15 @@ def getParser():
     with open(args.prompt, 'r') as file:
         prompt = file.read()
         
+    # let us create the two text files vision.txt and objects.txt if they do not already exist
+    if args.vision:
+        if not os.path.exists('vision.txt'):
+            with open('vision.txt', 'w') as file:
+                file.write("This is what you see through your robot eyes:\n\n Nothing")
+        if not os.path.exists('objects.txt'):
+            with open('objects.txt', 'w') as file:
+                file.write("No objects detected")
+        
     # get the variables from the arguments
     name = args.name
     temperature = args.temperature

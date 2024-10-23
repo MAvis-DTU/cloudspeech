@@ -9,3 +9,7 @@ models/yolo11n.pt
 # Object Detection files
 models/chatbot_detection_labels.rtf
 models/efficientdet_lite0.tflite
+
+vision.txt
+objects.txt
+vision_output.jpg
