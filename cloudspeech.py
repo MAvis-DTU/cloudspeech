@@ -25,6 +25,10 @@ Example usage:
 # [START speech_transcribe_streaming_mic]
 from __future__ import division
 from concurrent.futures import thread
+
+from flask import g
+from sympy import Q
+from torch import ge
 from __init__ import *
 
 from robot.nao_functions import * 
@@ -41,6 +45,8 @@ import openai
 import os
 import time
 from threading import Thread
+from concurrent.futures import ThreadPoolExecutor
+
 import time
 import argparse
 import sys
@@ -189,30 +195,11 @@ def run_yolo_in_subprocess(verbose, device, vision, vision_freq, camera):
         process = subprocess.Popen(command, env=env)
 
 
-def elevenLabsSay(text, IP, gesture_thread=None, multi_lingual=False, process_audio=False):
+def elevenLabsSay(text, IP, audio, gesture_thread=None):
     if voice_select == 0 and IP is not None:
         assert IP is not None, "IP address is not specified, and thus the robot cannot speak. voice_select 0 is not possible."
         say(IP, text, "Pepper", gesture_thread=gesture_thread)
     else:
-        # Verbose output
-        if verbose:
-            print("-----------------")
-            print("Generate Audio: START")
-            start = time.time()
-        if multi_lingual:
-            audio = generate(text=text, voice=multi_voices[voice_select], model="eleven_multilingual_v2")
-        else:
-            audio = generate(text=text, voice=eng_voices[voice_select])
-        
-        if process_audio:
-            # Alter audio sound to be more robotic
-            audio = change_pitch(audio, pitch_shift_steps=2) 
-        
-        # Verbose output
-        if verbose:
-            end = time.time()
-            print(f"Time taken: {end-start:.2f} s", file=sys.stderr)
-            print("Generate Audio: END\n")
         # Create gestures if the robot is connected
         if gesture_thread is not None:
             gesture_thread.run()
@@ -337,37 +324,89 @@ def changeVoice(prompt, voice):
         if verbose:
             print("Voice not changed")
         return 0
-
-# def remove_incomplete_sentence(text):
-#     sentences = sent_tokenize(text)
-#     if sentences:
-#         last_sentence = sentences[-1]
-#         if last_sentence.endswith('.') or last_sentence.endswith('!') or last_sentence.endswith('?'):
-#             return text
-#         else:
-#             # Remove the last sentence
-#             text = text.rsplit(sentences[-1], 1)[0]
-#             return text
-#     else:
-#         return text
     
+class AudioGestureGeneratorThread:
+    def __init__(self, verbose,
+                 multi_lingual,
+                 text,
+                 voice,
+                 openaiClient,
+                 process_audio):
+        """
+        Initialize the class with two functions and their respective arguments.
+
+        Parameters:
+            func1_args (tuple): Arguments for audio as a tuple.
+            func2_args (tuple): Arguments for gesture as a tuple.
+        """
+        self.verbose = verbose
+        self.multi_lingual = multi_lingual
+        self.text = text
+        self.voice = voice
+        self.openaiClient = openaiClient
+        self.process_audio = process_audio
+        self.result1 = None
+        self.result2 = None
+
+    def _run_func1(self):
+        # Run func1 with its arguments and store the result
+        if self.multi_lingual:
+            result = generate(text=self.text, voice=self.voice, model="eleven_multilingual_v2")
+        else:  
+            result = generate(text=self.text, voice=self.voice)
+        if self.process_audio:
+            # Alter audio sound to be more robotic
+            result = change_pitch(self.result1, pitch_shift_steps=2)
+        self.result1 = result
+        
+    def _run_func2(self):
+        # Run func2 with its arguments and store the result
+        self.result2 = get_gestures(text=self.text, openaiClient=self.openaiClient)
+
+    def run(self):
+        if self.verbose:
+            print("AudioGestureGeneratorThread: START")
+            start = time.time()
+        # Create two threads, one for each function
+        thread1 = threading.Thread(target=self._run_func1)
+        thread2 = threading.Thread(target=self._run_func2)
+
+        # Start both threads
+        thread1.start()
+        thread2.start()
+
+        # Wait for both threads to finish
+        thread1.join()
+        thread2.join()
+        if self.verbose:
+            end = time.time()
+            print(f"Time taken: {end-start:.2f} s")
+            print("AudioGestureGeneratorThread: END")
+        # Return the results of both functions
+        return self.result1, self.result2
+
 def conditional_say(pepper_response, bot_name, IP, openaiClient, multi_lingual, process_audio=False):
+
+
     if IP:
-        split_sentences, gesture_numbers = get_gestures(pepper_response, openaiClient)
-        gesture_thread = GestureThread(IP, split_sentences, gesture_numbers)
-        if voice_select == 0 and not multi_lingual:
+        if not voice_select == 0 and multi_lingual:
+            # Then we are using the multi-lingual model
+            # We thread the audio generation and the gesture generation
+            audio_gesture_thread = AudioGestureGeneratorThread(verbose=verbose, multi_lingual=multi_lingual, text=pepper_response, voice=multi_voices[voice_select], openaiClient=openaiClient, process_audio=process_audio)
+            thread_returns = audio_gesture_thread.run()
+            gesture_thread = GestureThread(IP, thread_returns[1][0], thread_returns[1][1])
+            elevenLabsSay(pepper_response, IP, audio=thread_returns[0], gesture_thread=gesture_thread)
+        elif voice_select == 0 and not multi_lingual:
             say(IP, pepper_response, bot_name, gesture_thread)
-        else:
-            elevenLabsSay(pepper_response, IP, gesture_thread, multi_lingual=multi_lingual, process_audio=process_audio)
     else:
-        elevenLabsSay(pepper_response, IP, multi_lingual=multi_lingual, process_audio=process_audio)
+        audio = generate(text=pepper_response, voice=eng_voices[voice_select])
+        elevenLabsSay(pepper_response, IP, audio=audio, gesture_thread=None)
 
 
 def getName(main_prompt, temperature, openaiClient, IP, language='en-US', robot_name='Pepper', multi_lingual=True, process_audio=False): 
     # Some introductory phrases
     prompt = [{"role": "system", "content": [{"type": "text", "text": main_prompt + '\n\n' + f"You are a robot called Pepper, and you are engaging in a conversation. Briefly introduce yourself in one sentence ask for the other person's name in a fun and engaging way."}]}]
     introduction = getResponse(prompt, temperature=temperature, max_tokens=255, top_p=1, openaiClient=openaiClient)
-    # elevenLabsSay(introduction, IP, multi_lingual=multi_lingual)
     conditional_say(introduction, robot_name, IP, openaiClient=openaiClient, multi_lingual=multi_lingual, process_audio=process_audio)
 
     print(f'{robot_name}: ' + introduction)
@@ -408,7 +447,6 @@ def getName(main_prompt, temperature, openaiClient, IP, language='en-US', robot_
             if '-nothing' in pepper_response.lower() or '-ingenting' in pepper_response.lower():
                 prompt = [{"role": "system", "content": [{"type": "text", "text": main_prompt + '\n\n' + f"You missed the other person's name, and you should ask again. Be kind and understanding. The response should be in {language}."}]}]
                 pepper_response = getResponse(prompt, temperature=temperature, max_tokens=255, top_p=top_p, openaiClient=openaiClient)
-                # elevenLabsSay(pepper_response, IP, multi_lingual=multi_lingual)
                 conditional_say(pepper_response, robot_name, IP, openaiClient=openaiClient, multi_lingual=multi_lingual, process_audio=process_audio)
                 print('Pepper: ' + pepper_response)
                 if verbose:
@@ -417,7 +455,6 @@ def getName(main_prompt, temperature, openaiClient, IP, language='en-US', robot_
                 name = pepper_response
                 prompt = [{"role": "system", "content": [{"type": "text", "text": main_prompt + '\n\n' + f"Great! So the human has introduced themselves as {name}. Now acknowledge it. The response should be in {language}."}]}]
                 pepper_response = getResponse(prompt, temperature=temperature, max_tokens=255, top_p=top_p, openaiClient=openaiClient)
-                # elevenLabsSay(pepper_response, IP, multi_lingual=multi_lingual)
                 conditional_say(pepper_response, robot_name, IP, openaiClient=openaiClient, multi_lingual=multi_lingual, process_audio=process_audio)
 
                 print('Pepper: ' + pepper_response)
@@ -484,7 +521,6 @@ def startConversation(prompt, speaker, temperature, max_tokens, top_p, openaiCli
             
             
             conditional_say(response, "Pepper", IP, openaiClient=openaiClient, multi_lingual=multi_lingual, process_audio=process_audio)
-            # elevenLabsSay(response, IP, multi_lingual=multi_lingual)
             print('Pepper: ' + response)
             if verbose:
                 print("-----------------")
