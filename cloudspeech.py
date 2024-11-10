@@ -95,7 +95,7 @@ global voice_select
 voice_select = 1
 
 set_api_key("cb4a60d9eaf1ad9514b055a3be1fc3b6")    
-    
+
 class GestureThread(Thread):
     def __init__(self, IP, split_sentences, gesture_numbers):
         Thread.__init__(self)
@@ -124,6 +124,71 @@ class GestureThread(Thread):
             self.p.terminate()
             self.p.kill()
             
+class AudioGestureGeneratorThread:
+    def __init__(self, verbose,
+                 multi_lingual,
+                 text,
+                 voice,
+                 openaiClient,
+                 process_audio):
+        """
+        Initialize the class with two functions and their respective arguments.
+
+        Parameters:
+            func1_args (tuple): Arguments for audio as a tuple.
+            func2_args (tuple): Arguments for gesture as a tuple.
+        """
+        self.verbose = verbose
+        self.multi_lingual = multi_lingual
+        self.text = text
+        self.voice = voice
+        self.openaiClient = openaiClient
+        self.process_audio = process_audio
+        self.result1 = None
+        self.result2 = None
+        self.end1 = None
+        self.end2 = None
+
+    def _run_audio(self):
+        # Run func1 with its arguments and store the result
+        if self.multi_lingual:
+            result = generate(text=self.text, voice=self.voice, model="eleven_multilingual_v2")
+        else:  
+            result = generate(text=self.text, voice=self.voice)
+        if self.process_audio:
+            # Alter audio sound to be more robotic
+            result = change_pitch(self.result1, pitch_shift_steps=2)
+        self.result1 = result
+        self.end1 = time.time()
+        
+    def _run_gesture(self):
+        # Run func2 with its arguments and store the result
+        self.result2 = get_gestures(text=self.text, openaiClient=self.openaiClient)
+        self.end2 = time.time()
+
+    def run(self):
+        if self.verbose:
+            print("Audio and Gesture generation: START")
+            start = time.time()
+        # Create two threads, one for each function
+        thread1 = threading.Thread(target=self._run_audio)
+        thread2 = threading.Thread(target=self._run_gesture)
+
+        # Start both threads
+        thread1.start()
+        thread2.start()
+
+        # Wait for both threads to finish
+        thread1.join()
+        thread2.join()
+        if self.verbose:
+            end = time.time()
+            print(f"Audio time:       {self.end1-start:.2f} s\n"
+                  f"Gesture Time:     {self.end2-start:.2f} s\n"
+                  f"Bottleneck Time:  {end-start:.2f} s")
+            print("Audio and Gesture generation: END")
+        # Return the results of both functions
+        return self.result1, self.result2
 
 def change_pitch(audio_bytes, pitch_shift_steps):
     # Step 1: Read MP3 bytes using pydub and convert to WAV format in-memory
@@ -157,7 +222,6 @@ def change_pitch(audio_bytes, pitch_shift_steps):
     mp3_shifted_io.seek(0)
     
     return mp3_shifted_io.read()
-set_api_key("cb4a60d9eaf1ad9514b055a3be1fc3b6")
 
 def run_yolo_in_subprocess(verbose, device, vision, vision_freq, camera):
     # Path to the yolo_detection.py script
@@ -190,7 +254,6 @@ def run_yolo_in_subprocess(verbose, device, vision, vision_freq, camera):
     else:
         # Set the environment variable for PyTorch MPS fallback
         env = {**os.environ, "PYTORCH_ENABLE_MPS_FALLBACK": "1"}
-
         # Run the command as a subprocess with the modified environment
         process = subprocess.Popen(command, env=env)
 
@@ -247,15 +310,15 @@ def get_gestures(text, openaiClient):
         "content": [{"type": "text", "text": text}]
         }
     ]
-    if verbose:
-        print("Get Gestures: START")
-        start = time.time()
+    # if verbose:
+    #     print("Get Gestures: START")
+    #     start = time.time()
     response = getResponse(prompt, temperature=1, max_tokens=256, top_p=1, openaiClient=openaiClient, frequency_penalty=0, presence_penalty=0)
-    if verbose:
-        print(response)
-        end = time.time()
-        print(f"Time taken: {end-start:.2f} s", file=sys.stderr)
-        print("Get Gestures: END\n")
+    # if verbose:
+    #     print(response)
+    #     end = time.time()
+    #     print(f"Time taken: {end-start:.2f} s", file=sys.stderr)
+    #     print("Get Gestures: END\n")
     gesture_numbers = [int(gesture) for gesture in re.findall(r'\[(\d+)\]', response)]
     split_sentences = re.split(r'\[\d+\]', response)
     return split_sentences, gesture_numbers
@@ -324,83 +387,24 @@ def changeVoice(prompt, voice):
         if verbose:
             print("Voice not changed")
         return 0
-    
-class AudioGestureGeneratorThread:
-    def __init__(self, verbose,
-                 multi_lingual,
-                 text,
-                 voice,
-                 openaiClient,
-                 process_audio):
-        """
-        Initialize the class with two functions and their respective arguments.
-
-        Parameters:
-            func1_args (tuple): Arguments for audio as a tuple.
-            func2_args (tuple): Arguments for gesture as a tuple.
-        """
-        self.verbose = verbose
-        self.multi_lingual = multi_lingual
-        self.text = text
-        self.voice = voice
-        self.openaiClient = openaiClient
-        self.process_audio = process_audio
-        self.result1 = None
-        self.result2 = None
-
-    def _run_func1(self):
-        # Run func1 with its arguments and store the result
-        if self.multi_lingual:
-            result = generate(text=self.text, voice=self.voice, model="eleven_multilingual_v2")
-        else:  
-            result = generate(text=self.text, voice=self.voice)
-        if self.process_audio:
-            # Alter audio sound to be more robotic
-            result = change_pitch(self.result1, pitch_shift_steps=2)
-        self.result1 = result
-        
-    def _run_func2(self):
-        # Run func2 with its arguments and store the result
-        self.result2 = get_gestures(text=self.text, openaiClient=self.openaiClient)
-
-    def run(self):
-        if self.verbose:
-            print("AudioGestureGeneratorThread: START")
-            start = time.time()
-        # Create two threads, one for each function
-        thread1 = threading.Thread(target=self._run_func1)
-        thread2 = threading.Thread(target=self._run_func2)
-
-        # Start both threads
-        thread1.start()
-        thread2.start()
-
-        # Wait for both threads to finish
-        thread1.join()
-        thread2.join()
-        if self.verbose:
-            end = time.time()
-            print(f"Time taken: {end-start:.2f} s")
-            print("AudioGestureGeneratorThread: END")
-        # Return the results of both functions
-        return self.result1, self.result2
 
 def conditional_say(pepper_response, bot_name, IP, openaiClient, multi_lingual, process_audio=False):
-
-
-    if IP:
-        if not voice_select == 0 and multi_lingual:
-            # Then we are using the multi-lingual model
-            # We thread the audio generation and the gesture generation
-            audio_gesture_thread = AudioGestureGeneratorThread(verbose=verbose, multi_lingual=multi_lingual, text=pepper_response, voice=multi_voices[voice_select], openaiClient=openaiClient, process_audio=process_audio)
-            thread_returns = audio_gesture_thread.run()
-            gesture_thread = GestureThread(IP, thread_returns[1][0], thread_returns[1][1])
-            elevenLabsSay(pepper_response, IP, audio=thread_returns[0], gesture_thread=gesture_thread)
-        elif voice_select == 0 and not multi_lingual:
-            say(IP, pepper_response, bot_name, gesture_thread)
-    else:
-        audio = generate(text=pepper_response, voice=eng_voices[voice_select])
-        elevenLabsSay(pepper_response, IP, audio=audio, gesture_thread=None)
+    audio_gesture_thread = AudioGestureGeneratorThread(verbose=verbose, multi_lingual=multi_lingual, text=pepper_response, voice=multi_voices[voice_select], openaiClient=openaiClient, process_audio=process_audio)
+    thread_returns = audio_gesture_thread.run()
+    elevenLabsSay(pepper_response, IP, audio=thread_returns[0], gesture_thread=None)
+    # if IP:
+    #     if not voice_select == 0 and multi_lingual:
+    #         # Then we are using the multi-lingual model
+    #         # We thread the audio generation and the gesture generation
+    #         audio_gesture_thread = AudioGestureGeneratorThread(verbose=verbose, multi_lingual=multi_lingual, text=pepper_response, voice=multi_voices[voice_select], openaiClient=openaiClient, process_audio=process_audio)
+    #         thread_returns = audio_gesture_thread.run()
+    #         gesture_thread = GestureThread(IP, thread_returns[1][0], thread_returns[1][1])
+    #         elevenLabsSay(pepper_response, IP, audio=thread_returns[0], gesture_thread=gesture_thread)
+    #     elif voice_select == 0 and not multi_lingual:
+    #         say(IP, pepper_response, bot_name, gesture_thread)
+    # else:
+    #     audio = generate(text=pepper_response, voice=eng_voices[voice_select])
+    #     elevenLabsSay(pepper_response, IP, audio=audio, gesture_thread=None)
 
 
 def getName(main_prompt, temperature, openaiClient, IP, language='en-US', robot_name='Pepper', multi_lingual=True, process_audio=False): 
