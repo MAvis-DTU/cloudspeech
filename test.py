@@ -1,19 +1,45 @@
-from openai import OpenAI
+import whisper
+import sounddevice as sd
+import numpy as np
+import keyboard
+from scipy.io.wavfile import write
 
-# get the API key from the file
-with open("openaiKey.txt", "r") as f:
-    api_key = f.read()
-    f.close()
+model = whisper.load_model("tiny")
 
+def record_audio(filename="recording.wav", sample_rate=44100):
+    print("Press space to start recording...")
+    
+    # Wait until the spacebar is pressed to start recording
+    keyboard.wait("space")
+    print("Recording started! Press space again to stop.")
+    
+    # Buffer to store the recorded audio
+    audio_buffer = []
 
-client = OpenAI(api_key=api_key)
+    def callback(indata, frames, time, status):
+        # Add incoming audio data to the buffer
+        audio_buffer.append(indata.copy())
 
-response = client.chat.completions.create(
-  model="gpt-3.5-turbo-1106",
-  response_format={ "type": "json_object" },
-  messages=[
-    {"role": "system", "content": "You are a helpful assistant designed to output JSON."},
-    {"role": "user", "content": "Who won the world series in 2020?"}
-  ]
-)
-print(response.choices[0].message.content)
+    # Start the input stream
+    with sd.InputStream(samplerate=sample_rate, channels=1, callback=callback):
+        # Record until space is pressed again
+        while not keyboard.is_pressed("space"):
+            pass
+
+    print("Recording stopped.")
+    
+    # Convert the buffer list to a numpy array
+    audio_data = np.concatenate(audio_buffer, axis=0)
+    write(filename, sample_rate, audio_data)
+    print(f"Recording saved as {filename}")
+
+# Run the recording function
+record_audio()
+
+print("Running speech-to-text...")
+#record some audio
+#whisper.record("audio.mp3", 5)
+
+#transcribe the audio
+result = model.transcribe("recording.wav")
+print(result["text"])
