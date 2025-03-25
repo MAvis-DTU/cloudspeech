@@ -1,7 +1,7 @@
 # Folders
 pythonsdk/
 __pycache__/
-credentials/
+credentials/keep/
 robot/__pycache__/
 
 models/yolo11n.pt
