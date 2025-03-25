@@ -1,5 +1,3 @@
-import subprocess
-import threading
 import qi
 import time
 import random
@@ -96,6 +94,7 @@ class NaoServices:
         self.tracker_service = self.session.service("ALTracker")
         self.behavior_service = self.session.service("ALBehaviorManager")
         self.auto_life_service = self.session.service("ALAutonomousLife")
+        self.tts_service = self.session.service("ALTextToSpeech")
 
     def nao_init(self):
         while True:
@@ -127,17 +126,11 @@ class NaoServices:
                 time.sleep(0.01)
                 continue
     
-    def nao_listen(self):
-        ...
-    
     def nao_say(self, text):
-        ...
-        
+        self.tts_service.say(text)
+
     def nao_stop_behavior(self):
-        ...
-    
-    def nao_talking(self):
-        ...
+        self.behavior_service.stopAllBehaviors()
     
     def nao_idle(self, time_bewtween_behaviors, b_type=waiting_behaviors):
         # Wake up robot

@@ -1,0 +1,60 @@
+# This file is used to store the configuration for the cloudspeech program. It contains configuration for all the components of the program. The configuration is stored in the form of key-value pairs. The keys are the names of the components and the values are the configuration for the components. It is important to note that the configuration is stored in the form of a dictionary. The configuration file is used to store the configuration for the following components:
+# 1. General configuration options for the program
+# 2. Google Cloud Speech API
+# 3. OpenAI GPT model information
+# 4. Elevenlabs API information
+
+# 0. ROBOT
+robot:
+  use_robot: False ## Whether to use the robot or not
+  robot_ip: 192.168.1.101 ## The IP address of the robot
+  robot_port: 9559 ## The port of the robot
+  voice:
+    0:
+      name: "Pepper"
+      description: "Pepper's own robot voice."
+
+# 1. GENERAL
+general:
+  main_prompt_path: 'dependencies/text/prompt.txt' ## main prompt path
+  robotic_voice: False ## robotic voice interference
+  object_detection: True ## To use object detection
+  camera_device_index: 0 ## camera device index for object detection
+
+# 2. Google Cloud Speech API
+google_cloud_speech: ## The Google Cloud Speech API key
+
+# 3. OpenAI GPT model information
+openai_gpt:
+  model: "gpt-4-turbo" ## Model to use
+  enable_vision: True ## Whether to enable vision API
+  vision_frequency: 5 ## Time in seconds between each vision API call
+  temperature: 0.7 ## Temperature for the GPT model, float between 0 and 2
+  max_tokens: 300 ## Maximum number of tokens to generate.
+  top_p: 1.0 ## Number of completions to generate for each prompt.
+
+# 4. Elevenlabs API information
+elevenlabs:
+  use_elevenlabs: True ## Whether to use the Eleven (OVERWRITES EVERYTHING ELSE)
+  init_language: 'en-UK' ## language for the model to use at the start
+  multi_lingual: True ## Whether to use multi-lingual model, i.e. switch languages during conversation
+  english_only_model_id: 'eleven_flash_v2' ## Model ID for the English only model
+  multi_lingual_model_id: 'eleven_multilingual_v2' ## Model ID for the multi-lingual model
+  init_voice: 1
+  enable_voice_change: True ## Whether to enable voice change
+  voices:
+    1: 
+      id: "dD4UVmm5aRLH7OY6HGtp"
+      name: "Bria - Young and Soft"
+    2:
+      id: "rU18Fk3uSDhmg5Xh41o4"
+      name: "Ryan Kurk"
+    3:
+      id: "TWGIYqyf4ytM4ctpb0S1"
+      name: "Phoebe"
+    4:
+      id: "nIBoiUir3RAsl7ppOJeu"
+      name: "Dave - deep and gruff"
+    5:
+      id: "XBIkBVE81YF3J3QG8L96"
+      name: "Maya"

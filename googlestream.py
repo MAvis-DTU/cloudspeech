@@ -15,15 +15,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""Google Cloud Speech API sample application using the streaming API.
-NOTE: This module requires the additional dependency `pyaudio`. To install
-using pip:
-    pip install pyaudio
-Example usage:
-    python transcribe_streaming_mic.py
-"""
 
-# [START speech_transcribe_streaming_mic]
 from __future__ import division
 import time
 
@@ -36,7 +28,6 @@ import pyaudio
 
 from six.moves import queue
 import keyboard
-
 
 class MicrophoneStream(object):
     """Opens a recording stream as a generator yielding the audio chunks."""
@@ -137,7 +128,7 @@ def listen_print_loop(speaker, responses, socket=None, is_setup=False, bot_name=
 
         # Display interim results, but with a carriage return at the end of the
         # line, so subsequent lines will overwrite them.
-        #
+        
         # If the previous result was longer than this one, we need to print
         # some extra spaces to overwrite the previous result
         overwrite_chars = " " * (num_chars_printed - len(transcript))            
@@ -152,9 +143,3 @@ def listen_print_loop(speaker, responses, socket=None, is_setup=False, bot_name=
         else:
             print(speaker+': '+ transcript + overwrite_chars)
             return transcript
-            # # Exit recognition if any of the transcribed phrases could be
-            # # one of our keywords.
-            # if re.search(r"\b(exit|quit)\b", transcript, re.I):
-            #     print("Exiting..")
-            #     break
-            # break
