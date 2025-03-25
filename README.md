@@ -3,6 +3,13 @@
 #### Introduction
 `cloudspeech.py` is a Python script utilizing Google Cloud Speech-to-Text, OpenAI's GPT models, and ElevenLabs' voice synthesis for interactive voice-enabled applications with a Softbanks Robotics Pepper Robot. This script incorporates functionality to interface with Pepper, execute voice streaming with real-time response using AI models, and perform object detection leveraging MediaPipe (provided MediaPipe is configured in the environment).
 
+
+## Prerequisites
+1. **IMPORTANT** With the ElevenLabs 1.54.0> we use an audiostream that requires mpv. For Mac users use `brew install mpv` and for windows and linux users go to [https://mpv.io/](https://mpv.io/). On windows and linux, after having downloaded the 7z file, unpack it and add the directory to your path. Check that you are able to invoke it via your CLI by typing `mpv`. 
+2. We have migrated away from using `qi` on Python 2.7.X. This also raises a few inconveniences for Windows users. For MACOS and Linux users, preferebly using Python >=3.12 simply perform a `pip install qi`. For Windows users please install WSL on your system and simply install `qi` there. Since WSL is connected to your windows system, simply downloading mpv on your windows system should be enough (this was something that caused me some problems, so it might not just work...). 
+
+
+
 #### Prerequisites
 1. **Python 3.x** and **Python 2.7.18** with the PythonSDK from Naoqi in your PYTHONPATH. **Python 3.x** handles AI models and **Python 2.7.18x** uses the Pepper Python SDK to send commands to the robot. 
 2. **PyAudio** library, which can be installed using pip:
