@@ -1,8 +1,5 @@
-from urllib import response
-from torch import mode
 from __init__ import *
 from dependencies.helpers import *
-# from dependencies.robot.nao_functions import NaoServices
 from googlestream import *
 
 def conditional_say(pepper_response, 

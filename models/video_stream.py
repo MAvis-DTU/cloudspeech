@@ -4,7 +4,6 @@ import numpy as np
 from models.yolo_model import ObjectDetect
 import time
 import os
-from openai import OpenAI
 import base64
 import requests
 import threading

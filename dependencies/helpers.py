@@ -9,7 +9,6 @@ import yaml
 import os
 import re
 from google.cloud import speech
-
 # from dependencies.robot.nao_functions import NaoServices
 
 def _init_elevenlabs(cloudspeech_config):
@@ -40,8 +39,12 @@ def _init_elevenlabs(cloudspeech_config):
 
 def _init_yolo_object_detection(cloudspeech_config, args):
     if cloudspeech_config["general"]["object_detection"]:
+        # initialize the vision and object detection files if they do not exist and reset them if they do
+        _initialize_vision_files(cloudspeech_config)  
+        
         if args.verbose:
             print("Running object detection")
+            
         # We need to run the object detection in a separate thread to avoid blocking the main thread
         run_yolo_in_subprocess(args.verbose, 
                                args.device, 
@@ -81,7 +84,7 @@ def _retrieve_config(path='cloudspeech_config.yaml'):
         cloudspeech_config = yaml.load(file, Loader=yaml.FullLoader)    
     return cloudspeech_config
 
-def _retrieve_main_prompt(cloudspeech_config):
+def _retrieve_prompt_from_file(cloudspeech_config):
     with open(cloudspeech_config["general"]["main_prompt_path"], 'r') as file:
         main_prompt = file.read()
     return main_prompt
@@ -190,7 +193,7 @@ def get_gestures(text, openaiClient, verbose=False):
         },
         {
         "role": "assistant",
-        "content": [{"type": "text", "text": "I don't understand what you [1] mean. Let me justf think about [4] it."}]
+        "content": [{"type": "text", "text": "I don't understand what you [1] mean. Let me just think about [4] it."}]
         },
         {
         "role": "user",
@@ -211,11 +214,10 @@ def get_gestures(text, openaiClient, verbose=False):
     return split_sentences, gesture_numbers
 
 def changeVoice(prompt, openaiClient, elevenlabsStream, verbose, model):
-
     voice_prompt = [
                     {
                     "role": "user",
-                    "content": [{"type":"text", "text":f"You have the following voices to chose from. They have an ID name and a description: {elevenlabsStream.voice_descriptions}. Below you will get a sentence said by a human. Your current voice is {elevenlabsStream.voice_select}. If the human explicitly requests for you to change your voice, write the ID that best matches the request: (ID), otherwise write: -nothing. Note that it is only if the human asks about another voice, not if the human simply mentions the name of the voice.\\n\\n',\n\n{prompt}\n"
+                    "content": [{"type":"text", "text":f"You have the following voices to chose from. They have an name and a description: {elevenlabsStream.voice_descriptions}. Below you will get a sentence said by a human. Your current voice is {elevenlabsStream.voice_select}. If the human explicitly requests for you to change your voice, write the ID that best matches the request: (ID), otherwise write: -nothing. Note that it is only if the human asks about another voice, not if the human simply mentions the name of the voice.\\n\\n',\n\n{prompt}\n"
                                 }
                                 ]
                     },
@@ -272,10 +274,10 @@ class ElevenLabsStream:
         
         # Variables stored to contain information about the voices and the selected voice
         self.voice_dict = voice_dict
-        self.voice_idx_to_id = {key: voice_dict[key]['id'] for key in voice_dict.keys()}
-        self.voice_id_to_name = {}
+        self.voice_id_to_idx = {voice_dict[key]['id']: key for key in voice_dict.keys()}
+        self.voice_idx_to_id = {}
         self.voice_descriptions = self._get_voice_descriptions(use_robot)
-        self.voice_select = self.voice_idx_to_id[init_voice]
+        self.voice_select = init_voice
         self.enable_voice_change = enable_voice_change
 
         # Variables to store information about the language
@@ -285,19 +287,23 @@ class ElevenLabsStream:
 
     def _get_voice_descriptions(self, use_robot):
         all_voices = self.client_elevenlabs.voices.get_all().voices
-        voice_ids = self.voice_idx_to_id.values()
-        voices = [voice for voice in all_voices if voice.voice_id in voice_ids]
-        # for each voice in voices, retrieve id and description
-        voice_descriptions = {voice.voice_id: voice.description for voice in voices}
-        self.voice_id_to_name = {voice.voice_id: voice.name for voice in voices} 
+        voice_ids = self.voice_id_to_idx.keys()
+        sorted_voice_ids = [voice for voice in all_voices if voice.voice_id in voice_ids]
+        
+        self.voice_idx_to_id = {}
+        voice_descriptions = {}
+        for voice in sorted_voice_ids:
+            self.voice_idx_to_id[self.voice_id_to_idx[voice.voice_id]] = voice.voice_id
+            voice_descriptions[self.voice_id_to_idx[voice.voice_id]] = voice.description
+
         if use_robot:
             self.voice_idx_to_id[0] = "Pepper"
-            voice_descriptions["Pepper"] = "Pepper's own robot voice."
+            voice_descriptions[0] = "Pepper's own robot voice."
         return voice_descriptions
         
     def _generate_stream(self, text):
         return self.client_elevenlabs.text_to_speech.convert_as_stream(text=text, 
-                                                                       voice_id=self.voice_select, 
+                                                                       voice_id=self.voice_idx_to_id[self.voice_select], 
                                                                        model_id=self.model_id)
 
     def _play_stream(self, result):
