@@ -217,14 +217,9 @@ def changeVoice(prompt, openaiClient, elevenlabsStream, verbose, model):
     voice_prompt = [
                     {
                     "role": "user",
-                    "content": [{"type":"text", "text":f"You have the following voices to chose from. They have an name and a description: {elevenlabsStream.voice_descriptions}. Below you will get a sentence said by a human. Your current voice is {elevenlabsStream.voice_select}. If the human explicitly requests for you to change your voice, write the ID that best matches the request: (ID), otherwise write: -nothing. Note that it is only if the human asks about another voice, not if the human simply mentions the name of the voice.\\n\\n',\n\n{prompt}\n"
+                    "content": [{"type":"text", "text":f"You have the following voices to chose from. They have a name and a description: {elevenlabsStream.voice_descriptions}. Below you will get a sentence said by a human. Your current voice is {elevenlabsStream.voice_select}. If the human explicitly requests for you to change your voice, write the ID that best matches the request: (ID), otherwise write: -nothing. Note that it is only if the human asks about another voice, not if the human simply mentions the name of the voice.\\n\\n',\n\n{prompt}\n"
                                 }
                                 ]
-                    },
-                    {
-                    "role": "assistant",
-                    "content": [{"type": "text",
-                                 "text": "2"}]
                     }
                     ]
     if verbose:
@@ -237,15 +232,17 @@ def changeVoice(prompt, openaiClient, elevenlabsStream, verbose, model):
         print(f"Time taken: {end-start:.2f} s", file=sys.stderr)
         print("Change Voice: END")
     try:
-        if elevenlabsStream.voice_select != response:
-            if response in elevenlabsStream.voice_id_to_name.keys():
-                elevenlabsStream.voice_select = response
+        if elevenlabsStream.voice_select != response and response != "-nothing":
+            if int(response) in elevenlabsStream.voice_idx_to_id:
+                elevenlabsStream.voice_select = int(response)
                 return 1
             else:
                 return 0
         else:
             return 0
-    except:
+    except ValueError as e:
+        if verbose:
+            print(f"ValueError: {e}")
         return 0
 
 def getConfig(language_code = "en-US"):         
@@ -294,8 +291,12 @@ class ElevenLabsStream:
         voice_descriptions = {}
         for voice in sorted_voice_ids:
             self.voice_idx_to_id[self.voice_id_to_idx[voice.voice_id]] = voice.voice_id
-            voice_descriptions[self.voice_id_to_idx[voice.voice_id]] = voice.description
-
+            saved_voice_description = self.voice_dict[self.voice_id_to_idx[voice.voice_id]]['description']
+            if saved_voice_description is None:
+                voice_descriptions[self.voice_id_to_idx[voice.voice_id]] = voice.description
+            else:
+                voice_descriptions[self.voice_id_to_idx[voice.voice_id]] = saved_voice_description
+                
         if use_robot:
             self.voice_idx_to_id[0] = "Pepper"
             voice_descriptions[0] = "Pepper's own robot voice."

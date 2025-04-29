@@ -18,7 +18,7 @@ robot:
 general:
   main_prompt_path: 'dependencies/text/prompt.txt' ## main prompt path
   robotic_voice: False ## robotic voice interference
-  object_detection: True ## To use object detection
+  object_detection: False ## To use object detection
   camera_device_index: 0 ## camera device index for object detection
 
 # 2. Google Cloud Speech API
@@ -27,7 +27,7 @@ google_cloud_speech: ## The Google Cloud Speech API key
 # 3. OpenAI GPT model information
 openai_gpt:
   model: "gpt-4-turbo" ## Model to use
-  enable_vision: True ## Whether to enable vision API
+  enable_vision: False ## Whether to enable vision API
   vision_frequency: 5 ## Time in seconds between each vision API call
   temperature: 0.7 ## Temperature for the GPT model, float between 0 and 2
   max_tokens: 300 ## Maximum number of tokens to generate.
@@ -36,25 +36,34 @@ openai_gpt:
 # 4. Elevenlabs API information
 elevenlabs:
   use_elevenlabs: True ## Whether to use the Eleven (OVERWRITES EVERYTHING ELSE)
-  init_language: 'en-UK' ## language for the model to use at the start
+  init_language: 'da-DK' ## language for the model to use at the start
   multi_lingual: True ## Whether to use multi-lingual model, i.e. switch languages during conversation
   english_only_model_id: 'eleven_flash_v2' ## Model ID for the English only model
   multi_lingual_model_id: 'eleven_multilingual_v2' ## Model ID for the multi-lingual model
   init_voice: 1
   enable_voice_change: True ## Whether to enable voice change
-  voices:
+  voices: # NOTE if description is left empty, it will use the default description from the elevenlabs API
     1: 
       id: "dD4UVmm5aRLH7OY6HGtp"
       name: "Bria - Young and Soft"
+      description: 
     2:
       id: "rU18Fk3uSDhmg5Xh41o4"
       name: "Ryan Kurk"
+      description: "Male, bright, young, expressive narrative voice. It could soothe, excite, inform, and entertain, all at the same time."
     3:
       id: "TWGIYqyf4ytM4ctpb0S1"
       name: "Phoebe"
+      description: "Female, young, playful and energetic voice, with a hint of assertiveness."
     4:
       id: "nIBoiUir3RAsl7ppOJeu"
       name: "Dave - deep and gruff"
+      description: "Male, middle-aged, deep and gruff voice, raw and intimidating. "
     5:
       id: "XBIkBVE81YF3J3QG8L96"
       name: "Maya"
+      description: 
+    6:
+      id: "gGLuLNsf9oA3WitvXpXc"
+      name: "Thomas"
+      description: 

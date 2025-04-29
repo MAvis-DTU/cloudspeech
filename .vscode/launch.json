@@ -10,7 +10,7 @@
             "request": "launch",
             "program": "${file}",
             "console": "integratedTerminal",
-            "args": ["-v", "-od", "-ml"]
+            "args": ["--name", "Thomas", "-v"]
             // "args": ["--ip", "192.168.1.152", "-v", "-ml"]
         }
     ]
