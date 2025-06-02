@@ -24,7 +24,7 @@ class VideoStreamCustom:
         self.vision_freq = vision_freq
 
         # Load the OpenAI API key from the file
-        with open('credentials/openaiKey.txt', 'r') as f:
+        with open('credentials/keep/openai_key.txt', 'r') as f:
             os.environ['gpt4key'] = f.read()
 
         # Set the API key
@@ -40,9 +40,9 @@ class VideoStreamCustom:
         if object_detect:
             self.OD = ObjectDetect(model_name, yolo_threshold=yolo_threshold, device=device, verbose=False)
 
-    def analyze_image_with_openai(self,image_path="vision_output.jpg"):
+    def analyze_image_with_openai(self,image_path="dependencies/vision/vision_output.jpg"):
         # Function to encode the image
-        def encode_image(image_path="vision_output.jpg"):
+        def encode_image(image_path="dependencies/vision/vision_output.jpg"):
             with open(image_path, "rb") as image_file:
                 return base64.b64encode(image_file.read()).decode('utf-8')
 
@@ -78,7 +78,7 @@ class VideoStreamCustom:
         response = requests.post("https://api.openai.com/v1/chat/completions", headers=headers, json=payload)
 
         # save the response to a text file vision.txt
-        with open("vision.txt", "w") as f:
+        with open("dependencies/vision/vision.txt", "w") as f:
             f.write("This is what you see through your robot eyes:\n\n" +response.json()['choices'][0]['message']['content'])
             f.close()
 
@@ -150,7 +150,7 @@ class VideoStreamCustom:
                 image = cv2.flip(image, 1)
                 # every 5 seconds save the frame to the disk 
                 if time.time() - vision_start_time > self.vision_freq:
-                    cv2.imwrite(f"vision_output.jpg", image)
+                    cv2.imwrite(f"dependencies/vision/vision_output.jpg", image)
                     vision_start_time = time.time()
                     if self.vision:
                         # run self.analyze_image_with_openai() in a thread
@@ -165,7 +165,7 @@ class VideoStreamCustom:
                 image = self.plot_boxes(results, image)
                 # Save the labels to a text file
                 predicted_classes = [self.OD.model.names[int(i)] for i in results[0]]
-                with open("objects.txt", "r+") as f:
+                with open("dependencies/vision/objects.txt", "r+") as f:
                     data = f.read()
                     #remove data from file
                     f.seek(0)
@@ -179,7 +179,7 @@ class VideoStreamCustom:
                     
                 frame_count += 1
                 elapsed_time = time.time() - start_time
-                elapsed_update_time = time.time() - os.path.getmtime("vision.txt")
+                elapsed_update_time = time.time() - os.path.getmtime("dependencies/vision/vision.txt")
                 fps = frame_count / elapsed_time
                 cv2.putText(image, f'FPS: {fps:.2f}', (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 0, 0), 2, cv2.LINE_AA)
                 if self.vision:

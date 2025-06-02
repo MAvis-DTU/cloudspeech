@@ -62,9 +62,9 @@ import io
 # from nltk.tokenize import sent_tokenize
 
 
-os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = 'credentials/chatkey.json'
+os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = 'credentials/keep/google_key.json'
 
-with open('credentials/openaiKey.txt', 'r') as f:
+with open('credentials/keep/openai_key.txt', 'r') as f:
     os.environ['gpt4key'] = f.read()
 
 api_key = os.getenv("gpt4key")
@@ -85,8 +85,10 @@ multi_voices = voices()
 
 global voice_select
 voice_select = 1
-
-set_api_key("cb4a60d9eaf1ad9514b055a3be1fc3b6")    
+with open('credentials/keep/elevenlabs_key.txt', 'r') as f:
+    elevenlabs_key = f.read()
+    
+set_api_key(elevenlabs_key)    
     
 class GestureThread(Thread):
     def __init__(self, IP, split_sentences, gesture_numbers):
@@ -363,7 +365,7 @@ def conditional_say(pepper_response, bot_name, IP, openaiClient, multi_lingual, 
 
 def getName(main_prompt, temperature, openaiClient, IP, language='en-US', robot_name='Pepper', multi_lingual=True, process_audio=False): 
     # Some introductory phrases
-    prompt = [{"role": "system", "content": [{"type": "text", "text": main_prompt + '\n\n' + f"You are a robot called Pepper, and you are engaging in a conversation. Briefly introduce yourself in one sentence ask for the other person's name in a fun and engaging way."}]}]
+    prompt = [{"role": "system", "content": [{"type": "text", "text": main_prompt + '\n\n' + f"You are a robot called Pepper, and you are engaging in a conversation. Briefly introduce yourself in one sentence ask for the other person's name in a fun and engaging way. The language is: {language}"}]}]
     introduction = getResponse(prompt, temperature=temperature, max_tokens=255, top_p=1, openaiClient=openaiClient)
     # elevenLabsSay(introduction, IP, multi_lingual=multi_lingual)
     conditional_say(introduction, robot_name, IP, openaiClient=openaiClient, multi_lingual=multi_lingual, process_audio=process_audio)
@@ -460,12 +462,12 @@ def startConversation(prompt, speaker, temperature, max_tokens, top_p, openaiCli
                 voice_changed = changeVoice('Human:' + human_response, voice=voice_select)
 
             # fetch the string from objects.txt 
-            with open('objects.txt', 'r') as file:
+            with open('dependencies/vision/objects.txt', 'r') as file:
                 objects = file.read()
 
             # fetch the string from vision.txt if vision is enabled
             if vision:
-                with open('vision.txt', 'r') as file:
+                with open('dependencies/vision/vision.txt', 'r') as file:
                     vision = file.read()
                 prompt += [{"role": "user", "content": [{"type": "text", "text": human_response + '\n\n' + objects + '\n\n' "This is your own descripton of what you see with your eyes: " + vision}]}]
             else:
@@ -522,11 +524,11 @@ def getParser():
         
     # let us create the two text files vision.txt and objects.txt if they do not already exist
     if args.vision:
-        if not os.path.exists('vision.txt'):
-            with open('vision.txt', 'w') as file:
+        if not os.path.exists('dependencies/vision/vision.txt'):
+            with open('dependencies/vision/vision.txt', 'w') as file:
                 file.write("This is what you see through your robot eyes:\n\n Nothing")
-        if not os.path.exists('objects.txt'):
-            with open('objects.txt', 'w') as file:
+        if not os.path.exists('dependencies/vision/objects.txt'):
+            with open('dependencies/vision/objects.txt', 'w') as file:
                 file.write("No objects detected")
         
     # get the variables from the arguments
