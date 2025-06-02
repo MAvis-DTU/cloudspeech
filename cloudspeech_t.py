@@ -30,6 +30,8 @@ from __init__ import *
 from robot.nao_functions import * 
 import re
 # import sys
+import signal
+
 
 from google.cloud import speech
 
@@ -62,9 +64,9 @@ import io
 # from nltk.tokenize import sent_tokenize
 
 
-os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = 'credentials/keep/google_key.json'
+os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = 'credentials/chatkey.json'
 
-with open('credentials/keep/openai_key.txt', 'r') as f:
+with open('credentials/openaiKey.txt', 'r') as f:
     os.environ['gpt4key'] = f.read()
 
 api_key = os.getenv("gpt4key")
@@ -80,16 +82,15 @@ eng_voices = {1: "21m00Tcm4TlvDq8ikWAM", # Rachel
               4: "nIBoiUir3RAsl7ppOJeu", # Dave - deep and gruff
               5: "zrHiDhphv9ZnVXBqCLjz", # Mimi
               6: "gGLuLNsf9oA3WitvXpXc"} # Thomas test
+#              6: "OsfMhIQIbgL5Tm2P0QOm"} # Thomas test
 
 # Voice for multi-lingual tts model
 multi_voices = voices()
 
 global voice_select
 voice_select = 6
-with open('credentials/keep/elevenlabs_key.txt', 'r') as f:
-    elevenlabs_key = f.read()
-    
-set_api_key(elevenlabs_key)    
+
+set_api_key("cb4a60d9eaf1ad9514b055a3be1fc3b6")    
     
 class GestureThread(Thread):
     def __init__(self, IP, split_sentences, gesture_numbers):
@@ -200,10 +201,10 @@ def elevenLabsSay(text, IP, gesture_thread=None, multi_lingual=False, process_au
             print("-----------------")
             print("Generate Audio: START")
             start = time.time()
-        if not multi_lingual:
+        if not multi_lingual: # 13 April 2025: was if multi_lingual 
             audio = generate(text=text, voice=multi_voices[voice_select], model="eleven_multilingual_v2")
         else:
-            audio = generate(text=text, voice=eng_voices[voice_select], model="eleven_multilingual_v2")
+            audio = generate(text=text, voice=eng_voices[voice_select], model="eleven_multilingual_v2") # 13 April 2025: added eleven_multilingual_v2
         
         if process_audio:
             # Alter audio sound to be more robotic
@@ -230,7 +231,7 @@ def get_gestures(text, openaiClient):
     prompt = [
         {
         "role": "system",
-        "content": "Given a paragraph of text, annotate every 15 words in that paragraph with the most appropriate tag. You should always give a tag no matter what. The tags are to be placed in square brackets. \n\nFollowing tags are available:\n0. Happy\n1. Sad\n2. Affirmative\n3. Unfamiliar\n4. Thinking\n5. Explain\n\nIt should be on the form:\n\nHi, [5] have you heard about the recent news? They are [1] quite horrific to say the least."
+        "content": "Given a paragraph of text, annotate every 10 words in that paragraph with the most appropriate tag. You should always give a tag no matter what. The tags are to be placed in square brackets. \n\nFollowing tags are available:\n0. Happy\n1. Sad\n2. Affirmative\n3. Unfamiliar\n4. Thinking\n5. Explain\n\nIt should be on the form:\n\nHi, [5] have you heard about the recent news? They are [1] quite horrific to say the least."
         },
         {
         "role": "user",
@@ -366,7 +367,7 @@ def conditional_say(pepper_response, bot_name, IP, openaiClient, multi_lingual, 
 
 def getName(main_prompt, temperature, openaiClient, IP, language='en-US', robot_name='Pepper', multi_lingual=True, process_audio=False): 
     # Some introductory phrases
-    prompt = [{"role": "system", "content": [{"type": "text", "text": main_prompt + '\n\n' + f"You are a robot called Pepper, and you are engaging in a conversation. Briefly introduce yourself in one sentence ask for the other person's name in a fun and engaging way. The language is: {language}"}]}]
+    prompt = [{"role": "system", "content": [{"type": "text", "text": main_prompt + '\n\n' + f"You are a robot called Pepper, and you are engaging in a conversation. Briefly introduce yourself in one sentence ask for the other person's name in a fun and engaging way."}]}]
     introduction = getResponse(prompt, temperature=temperature, max_tokens=255, top_p=1, openaiClient=openaiClient)
     # elevenLabsSay(introduction, IP, multi_lingual=multi_lingual)
     conditional_say(introduction, robot_name, IP, openaiClient=openaiClient, multi_lingual=multi_lingual, process_audio=process_audio)
@@ -459,16 +460,16 @@ def startConversation(prompt, speaker, temperature, max_tokens, top_p, openaiCli
                 print("Listening: END\n")
                 print("-----------------")
             
-            # if not multi_lingual:
-            voice_changed = changeVoice('Human:' + human_response, voice=voice_select)
+            if multi_lingual:  # 13 April 2025 was: if *not* multi_lingual
+                voice_changed = changeVoice('Human:' + human_response, voice=voice_select)
 
             # fetch the string from objects.txt 
-            with open('dependencies/vision/objects.txt', 'r') as file:
+            with open('objects.txt', 'r') as file:
                 objects = file.read()
 
             # fetch the string from vision.txt if vision is enabled
             if vision:
-                with open('dependencies/vision/vision.txt', 'r') as file:
+                with open('vision.txt', 'r') as file:
                     vision = file.read()
                 prompt += [{"role": "user", "content": [{"type": "text", "text": human_response + '\n\n' + objects + '\n\n' "This is your own descripton of what you see with your eyes: " + vision}]}]
             else:
@@ -493,6 +494,36 @@ def startConversation(prompt, speaker, temperature, max_tokens, top_p, openaiCli
             prompt += [{"role": "assistant", "content": response}]
     return 0
 
+class SubprocessHandler:
+    def __init__(self, main_command, cleanup_command, IP, time_between_behaviors=60):
+        self.main_command = main_command
+        self.cleanup_command = cleanup_command
+        self.process = None
+        self.IP = IP
+        self.time_between_behaviors = time_between_behaviors
+
+    def run_main(self):
+        self.process = subprocess.Popen(self.main_command, shell=True, stdin=subprocess.PIPE)
+        self.process.communicate(input=bytes(self.IP + '\n' + str(self.time_between_behaviors), encoding="utf-8"))
+
+    def cleanup(self):
+        print("Running cleanup subprocess...")
+        subprocess.run(self.cleanup_command, shell=True, input=bytes(self.IP, encoding="utf-8"))
+        if self.process:
+            self.process.terminate()
+
+    def __enter__(self):
+        signal.signal(signal.SIGINT, self.signal_handler)
+        return self
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        self.cleanup()
+
+    def signal_handler(self, sig, frame):
+        self.cleanup()
+        sys.exit(0)
+        
+
 def getParser():
      # initialize argparser 
     parser = argparse.ArgumentParser(description='Process some integers.')
@@ -506,7 +537,7 @@ def getParser():
     parser.add_argument('--top_p', type=float, default=1, help='top p for the GPT model')
     parser.add_argument('--language', type=str, default='da-DK', help='language for the GPT-3 model: en-US, en-GB, da-DK etc. see https://cloud.google.com/speech-to-text/docs/speech-to-text-supported-languages for more.')
     parser.add_argument('--final_read', type=bool, default=False, help='if true the final text will be read out loud by the robot')
-    parser.add_argument('--init_voice', type=int, default=6, help='NOTE, if -ml is not specified init voice containes the following, 0. Robot, 1. Rachel, 2. Ryan Kurk, 3. Pheobe, 4. Dave, 5. Mimi. Otherwise, it is an index in the dictonary of multi-lingual voices.')
+    parser.add_argument('--init_voice', type=int, default=2, help='NOTE, if -ml is not specified init voice containes the following, 0. Robot, 1. Rachel, 2. Ryan Kurk, 3. Pheobe, 4. Dave, 5. Mimi. Otherwise, it is an index in the dictonary of multi-lingual voices.')
     parser.add_argument('--device', type=str, default='cpu', help='The device to run the od on.')
     parser.add_argument('-od', '--object_detection', action='store_true', help='if true the object detection will be run')
     parser.add_argument('--camera', type=int, default=0, help='Camera index to use for object detection')
@@ -515,6 +546,9 @@ def getParser():
     parser.add_argument('--vision', action='store_true', help='Enable vision model to analyze the image')
     parser.add_argument('-vf', '--visionfreq', type=int, default=5, help='Time betwee frame captures for the OpenAI vision model')
     parser.add_argument('-pa', '--process_audio', action='store_true', help='Process the audio to sound more robotic.')
+    parser.add_argument('--idle', action='store_true', help='Run the robot in idle mode')
+    parser.add_argument('--time_between_behaviors', type=int, default=60, help='Time between gestures during idle mode. (in seconds)')
+
     # parse the arguments
     args = parser.parse_args()
 
@@ -525,11 +559,11 @@ def getParser():
         
     # let us create the two text files vision.txt and objects.txt if they do not already exist
     if args.vision:
-        if not os.path.exists('dependencies/vision/vision.txt'):
-            with open('dependencies/vision/vision.txt', 'w') as file:
+        if not os.path.exists('vision.txt'):
+            with open('vision.txt', 'w') as file:
                 file.write("This is what you see through your robot eyes:\n\n Nothing")
-        if not os.path.exists('dependencies/vision/objects.txt'):
-            with open('dependencies/vision/objects.txt', 'w') as file:
+        if not os.path.exists('objects.txt'):
+            with open('objects.txt', 'w') as file:
                 file.write("No objects detected")
         
     # get the variables from the arguments
@@ -549,13 +583,14 @@ def getParser():
     vision_freq = args.visionfreq
     process_audio = args.process_audio
     camera = args.camera
-    
+    idle = args.idle
+    time_between_behaviors = args.time_between_behaviors
     # if not multi-lingual, we need to make sure that init_voice is within the correct range
     if not multi_lingual:
         assert voice_select in eng_voices.keys(), "The voice you have selected is not available. Please select a voice from the following list: 0. Robot, 1. Rachel, 2. Ryan Kurk, 3. Pheobe, 4. Dave, 5. Mimi."
     
-    if language != 'en-UK' or language != 'en-US':
-        multi_lingual = True
+    #if language != 'en-UK' or language != 'en-US':
+    #    multi_lingual = True
         
     if args.object_detection:
         if args.verbose:
@@ -565,11 +600,11 @@ def getParser():
         run_yolo_in_subprocess(verbose, device, vision, vision_freq, camera)   
     IP = args.ip
 
-    return IP, name, prompt, temperature, max_tokens, top_p, language, final_read, multi_lingual, vision, process_audio
+    return IP, name, prompt, temperature, max_tokens, top_p, language, final_read, multi_lingual, vision, process_audio, idle, time_between_behaviors
 
 if __name__ == "__main__":
     # get the arguments
-    IP, name, prompt, temperature, max_tokens, top_p, language, final_read, multi_lingual, vision, process_audio = getParser()
+    IP, name, prompt, temperature, max_tokens, top_p, language, final_read, multi_lingual, vision, process_audio, idle, time_between_behaviors = getParser()
     global voice_descriptions
     if IP is not None:
         IP = f"tcp://{IP}:9559"
@@ -591,16 +626,30 @@ if __name__ == "__main__":
         \n3: Female, young, playful and energetic voice, with a hint of assertiveness.
         \n4: Male, middle-aged, deep and gruff voice, raw and intimidating. 
         \n5: Female, young, light, delicate and sweet. It exudes innocence and charm. 
+        \n6: Sounds like Thomas, referred to as "my voice". 
         \n\n
         """
-    
-    openaiClient = openai.OpenAI(api_key=api_key)
-    # get the name of the human if not specified using argument parser
-    if name == 'Human':
-        name, pepper_response = getName(main_prompt=prompt, temperature=temperature, openaiClient=openaiClient, language=language, IP=IP, multi_lingual=multi_lingual, process_audio=process_audio)
-        prompt = [{"role": "system", "content": prompt}, {"role": "assistant", "content": [{"type": "text", "text": pepper_response}]}]
-    else:
-        prompt = [{"role": "system", "content": prompt + '\n\n' + 'The person you are talking to is called, ' + name + f". Your starting language is: " + language}, {"role": "assistant", "content": [{"type": "text", "text": ""}]}]
+    if not idle:
+        openaiClient = openai.OpenAI(api_key=api_key)
+        # get the name of the human if not specified using argument parser
+        if name == 'Human':
+            name, pepper_response = getName(main_prompt=prompt, temperature=temperature, openaiClient=openaiClient, language=language, IP=IP, multi_lingual=multi_lingual, process_audio=process_audio)
+            prompt = [{"role": "system", "content": prompt}, {"role": "assistant", "content": [{"type": "text", "text": pepper_response}]}]
+        else:
+            
+            prompt = [{"role": "system", "content": prompt + '\n\n' + 'The person you are talking to is called, ' + name}, {"role": "assistant", "content": [{"type": "text", "text": ""}]}]
 
-    startConversation(prompt, name, temperature=temperature, max_tokens=max_tokens, top_p=top_p, language=language, openaiClient=openaiClient, IP=IP, multi_lingual=multi_lingual, vision=vision, process_audio=process_audio)
-    print("Successfully exited...")
+        startConversation(prompt, name, temperature=temperature, max_tokens=max_tokens, top_p=top_p, language=language, openaiClient=openaiClient, IP=IP, multi_lingual=multi_lingual, vision=vision, process_audio=process_audio)
+        print("Successfully exited...")
+    else:
+        
+        main_command = ['python2', 'robot/nao_idle.py']
+        cleanup_command = ['python2', 'robot/nao_idle_terminate.py']
+        with SubprocessHandler(main_command, cleanup_command, IP, time_between_behaviors) as handler:
+            handler.run_main()
+            try:
+                while True:
+                    pass
+            except KeyboardInterrupt:
+                handler.cleanup()
+                sys.exit(0)
