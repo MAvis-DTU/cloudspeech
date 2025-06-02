@@ -30,8 +30,6 @@ from __init__ import *
 from robot.nao_functions import * 
 import re
 # import sys
-import signal
-
 
 from google.cloud import speech
 
@@ -229,7 +227,7 @@ def get_gestures(text, openaiClient):
     prompt = [
         {
         "role": "system",
-        "content": "Given a paragraph of text, annotate every 10 words in that paragraph with the most appropriate tag. You should always give a tag no matter what. The tags are to be placed in square brackets. \n\nFollowing tags are available:\n0. Happy\n1. Sad\n2. Affirmative\n3. Unfamiliar\n4. Thinking\n5. Explain\n\nIt should be on the form:\n\nHi, [5] have you heard about the recent news? They are [1] quite horrific to say the least."
+        "content": "Given a paragraph of text, annotate every 15 words in that paragraph with the most appropriate tag. You should always give a tag no matter what. The tags are to be placed in square brackets. \n\nFollowing tags are available:\n0. Happy\n1. Sad\n2. Affirmative\n3. Unfamiliar\n4. Thinking\n5. Explain\n\nIt should be on the form:\n\nHi, [5] have you heard about the recent news? They are [1] quite horrific to say the least."
         },
         {
         "role": "user",
@@ -492,36 +490,6 @@ def startConversation(prompt, speaker, temperature, max_tokens, top_p, openaiCli
             prompt += [{"role": "assistant", "content": response}]
     return 0
 
-class SubprocessHandler:
-    def __init__(self, main_command, cleanup_command, IP, time_between_behaviors=60):
-        self.main_command = main_command
-        self.cleanup_command = cleanup_command
-        self.process = None
-        self.IP = IP
-        self.time_between_behaviors = time_between_behaviors
-
-    def run_main(self):
-        self.process = subprocess.Popen(self.main_command, shell=True, stdin=subprocess.PIPE)
-        self.process.communicate(input=bytes(self.IP + '\n' + str(self.time_between_behaviors), encoding="utf-8"))
-
-    def cleanup(self):
-        print("Running cleanup subprocess...")
-        subprocess.run(self.cleanup_command, shell=True, input=bytes(self.IP, encoding="utf-8"))
-        if self.process:
-            self.process.terminate()
-
-    def __enter__(self):
-        signal.signal(signal.SIGINT, self.signal_handler)
-        return self
-
-    def __exit__(self, exc_type, exc_val, exc_tb):
-        self.cleanup()
-
-    def signal_handler(self, sig, frame):
-        self.cleanup()
-        sys.exit(0)
-        
-
 def getParser():
      # initialize argparser 
     parser = argparse.ArgumentParser(description='Process some integers.')
@@ -544,9 +512,6 @@ def getParser():
     parser.add_argument('--vision', action='store_true', help='Enable vision model to analyze the image')
     parser.add_argument('-vf', '--visionfreq', type=int, default=5, help='Time betwee frame captures for the OpenAI vision model')
     parser.add_argument('-pa', '--process_audio', action='store_true', help='Process the audio to sound more robotic.')
-    parser.add_argument('--idle', action='store_true', help='Run the robot in idle mode')
-    parser.add_argument('--time_between_behaviors', type=int, default=60, help='Time between gestures during idle mode. (in seconds)')
-
     # parse the arguments
     args = parser.parse_args()
 
@@ -581,8 +546,7 @@ def getParser():
     vision_freq = args.visionfreq
     process_audio = args.process_audio
     camera = args.camera
-    idle = args.idle
-    time_between_behaviors = args.time_between_behaviors
+    
     # if not multi-lingual, we need to make sure that init_voice is within the correct range
     if not multi_lingual:
         assert voice_select in eng_voices.keys(), "The voice you have selected is not available. Please select a voice from the following list: 0. Robot, 1. Rachel, 2. Ryan Kurk, 3. Pheobe, 4. Dave, 5. Mimi."
@@ -598,11 +562,11 @@ def getParser():
         run_yolo_in_subprocess(verbose, device, vision, vision_freq, camera)   
     IP = args.ip
 
-    return IP, name, prompt, temperature, max_tokens, top_p, language, final_read, multi_lingual, vision, process_audio, idle, time_between_behaviors
+    return IP, name, prompt, temperature, max_tokens, top_p, language, final_read, multi_lingual, vision, process_audio
 
 if __name__ == "__main__":
     # get the arguments
-    IP, name, prompt, temperature, max_tokens, top_p, language, final_read, multi_lingual, vision, process_audio, idle, time_between_behaviors = getParser()
+    IP, name, prompt, temperature, max_tokens, top_p, language, final_read, multi_lingual, vision, process_audio = getParser()
     global voice_descriptions
     if IP is not None:
         IP = f"tcp://{IP}:9559"
@@ -626,27 +590,15 @@ if __name__ == "__main__":
         \n5: Female, young, light, delicate and sweet. It exudes innocence and charm. 
         \n\n
         """
-    if not idle:
-        openaiClient = openai.OpenAI(api_key=api_key)
-        # get the name of the human if not specified using argument parser
-        if name == 'Human':
-            name, pepper_response = getName(main_prompt=prompt, temperature=temperature, openaiClient=openaiClient, language=language, IP=IP, multi_lingual=multi_lingual, process_audio=process_audio)
-            prompt = [{"role": "system", "content": prompt}, {"role": "assistant", "content": [{"type": "text", "text": pepper_response}]}]
-        else:
-            
-            prompt = [{"role": "system", "content": prompt + '\n\n' + 'The person you are talking to is called, ' + name}, {"role": "assistant", "content": [{"type": "text", "text": ""}]}]
-
-        startConversation(prompt, name, temperature=temperature, max_tokens=max_tokens, top_p=top_p, language=language, openaiClient=openaiClient, IP=IP, multi_lingual=multi_lingual, vision=vision, process_audio=process_audio)
-        print("Successfully exited...")
+    
+    openaiClient = openai.OpenAI(api_key=api_key)
+    # get the name of the human if not specified using argument parser
+    if name == 'Human':
+        name, pepper_response = getName(main_prompt=prompt, temperature=temperature, openaiClient=openaiClient, language=language, IP=IP, multi_lingual=multi_lingual, process_audio=process_audio)
+        prompt = [{"role": "system", "content": prompt}, {"role": "assistant", "content": [{"type": "text", "text": pepper_response}]}]
     else:
         
-        main_command = ['python2', 'robot/nao_idle.py']
-        cleanup_command = ['python2', 'robot/nao_idle_terminate.py']
-        with SubprocessHandler(main_command, cleanup_command, IP, time_between_behaviors) as handler:
-            handler.run_main()
-            try:
-                while True:
-                    pass
-            except KeyboardInterrupt:
-                handler.cleanup()
-                sys.exit(0)
+        prompt = [{"role": "system", "content": prompt + '\n\n' + 'The person you are talking to is called, ' + name}, {"role": "assistant", "content": [{"type": "text", "text": ""}]}]
+
+    startConversation(prompt, name, temperature=temperature, max_tokens=max_tokens, top_p=top_p, language=language, openaiClient=openaiClient, IP=IP, multi_lingual=multi_lingual, vision=vision, process_audio=process_audio)
+    print("Successfully exited...")

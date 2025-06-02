@@ -55,11 +55,6 @@ You can customize the behavior of the script by passing the following arguments:
 - `--vision`: Specify if vision-model (o-model) should be used to describe the environment.
 - `-vf` or `-visionfreq`: The frequency (time between) of which the GPT O-model is queried by.
 - `-pa` or `--process_audio`: Whether to apply post-processing on the audio generated from ElevenLabs.
-- `--idle`: Whether to run the idle configuration of the robot.
-- `--time_between_behaviors`: The time between randomly executed gestures in seconds.
-
-
-**NOTE** There is an idle function included into the cloudspeech script. To run it execut the following command in your CLI, `python cloudspeech.py --idle` and then you can add the optional setting `--time_between_behaviors` which represents the time between each gesture performed in seconds (takes an integer number).
 
 **NOTE** when the language is set different from "en-US" or "en-UK", multi_lingual is automatically set to True no matter if it has been specified otherwise in the CLI. 
 
