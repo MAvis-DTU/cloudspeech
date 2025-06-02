@@ -66,7 +66,7 @@ def getName(main_prompt: str,
             verbose: bool =False,
             gpt_model="gpt-4-turbo"): 
     # Some introductory phrases
-    prompt = [{"role": "system", "content": [{"type": "text", "text": main_prompt + '\n\n' + f"You are a robot called Pepper, and you are engaging in a conversation. Briefly introduce yourself in one sentence ask for the other person's name in a fun and engaging way."}]}]
+    prompt = [{"role": "system", "content": [{"type": "text", "text": main_prompt + '\n\n' + f"You are a robot called Pepper, and you are engaging in a conversation. Briefly introduce yourself in one sentence ask for the other person's name in a fun and engaging way. Use the following language: {language}"}]}]
     introduction = getResponse(prompt, temperature=temperature, max_tokens=max_tokens, top_p=top_p, openaiClient=openaiClient, model=gpt_model, verbose=verbose, response_type='Name')
     conditional_say(introduction, openaiClient=openaiClient, naoServices=naoServices, elevenlabsStream=elevenlabsStream, verbose=verbose)
 
