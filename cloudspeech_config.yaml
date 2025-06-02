@@ -7,8 +7,8 @@
 # 0. ROBOT
 robot:
   use_robot: False ## Whether to use the robot or not
-  robot_ip: 192.168.1.101 ## The IP address of the robot
-  robot_port: 9559 ## The port of the robot
+  ip: 169.254.140.85 ## The IP address of the robot
+  port: 9559 ## The port of the robot
   voice:
     0:
       name: "Pepper"
@@ -40,7 +40,7 @@ elevenlabs:
   multi_lingual: True ## Whether to use multi-lingual model, i.e. switch languages during conversation
   english_only_model_id: 'eleven_flash_v2' ## Model ID for the English only model
   multi_lingual_model_id: 'eleven_multilingual_v2' ## Model ID for the multi-lingual model
-  init_voice: 1
+  init_voice: 1 ## Initial voice to use, 0 is Pepper's own voice
   enable_voice_change: True ## Whether to enable voice change
   voices: # NOTE if description is left empty, it will use the default description from the elevenlabs API
     1: 

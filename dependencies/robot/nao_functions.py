@@ -84,8 +84,9 @@ waiting_behaviors = [
 
 class NaoServices:
     def __init__(self, IP):        
-        session = qi.Session()
-        session.connect(IP)
+        self.session = qi.Session()
+        self.session.connect(IP)
+        self.IP = IP
         self._load_services()
     
     def _load_services(self):
@@ -115,9 +116,9 @@ class NaoServices:
     def nao_gestures(self, gesture_numbers):
         for i in gesture_numbers:
             try:
-                chosen_behavior = random.choice(animations[i])
+                chosen_behavior = random.choice(animations[str(i)])
                 while not self.behavior_service.isBehaviorInstalled(chosen_behavior):
-                        chosen_behavior = random.choice(animations[i])
+                        chosen_behavior = random.choice(animations[str(i)])
                 self.behavior_service.startBehavior(chosen_behavior)
                 while self.behavior_service.isBehaviorRunning(chosen_behavior):
                     time.sleep(0.1)  # Check every 100ms if the behavior is still running

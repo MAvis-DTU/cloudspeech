@@ -8,7 +8,7 @@ def conditional_say(pepper_response,
                     elevenlabsStream, 
                     verbose):
     if naoServices:
-        if naoServices.voice_select == 0 and naoServices.multi_lingual:
+        if elevenlabsStream.voice_select == 0 and elevenlabsStream.multi_lingual:
             audio_gesture_thread = AudioGestureGeneratorThread(verbose=verbose, text=pepper_response, openaiClient=openaiClient, elevenlabsStream=elevenlabsStream)
             thread_returns = audio_gesture_thread.run()
             gesture_thread = GestureThread(naoServices, thread_returns[1][0], thread_returns[1][1])
@@ -18,7 +18,7 @@ def conditional_say(pepper_response,
             # Terminate the gesture thread after the audio stream has finished playing
             gesture_thread.terminate()
             
-        elif naoServices.voice_select == 0 and not naoServices.multi_lingual:
+        elif elevenlabsStream.voice_select == 0 and not elevenlabsStream.multi_lingual:
             if verbose:
                 print("-----------------")
                 print("Gesture generation: START")
@@ -29,7 +29,7 @@ def conditional_say(pepper_response,
                 print(f"Time taken: {end-start:.2f} s")
                 print("Gesture generation: END")
                 print("-----------------")
-            gesture_thread = GestureThread(naoServices.IP, split_sentences, gesture_numbers)
+            gesture_thread = GestureThread(naoServices, split_sentences, gesture_numbers)
             gesture_thread.run()
             naoServices.nao_say(pepper_response)
             gesture_thread.terminate()

@@ -9,7 +9,7 @@ import yaml
 import os
 import re
 from google.cloud import speech
-# from dependencies.robot.nao_functions import NaoServices
+from dependencies.robot.nao_functions import NaoServices
 
 def _init_elevenlabs(cloudspeech_config):
     if cloudspeech_config["elevenlabs"]["use_elevenlabs"]:
@@ -57,7 +57,7 @@ def _init_robot(cloudspeech_config):
         ip = cloudspeech_config["robot"]["ip"]
         port = cloudspeech_config["robot"]["port"]
         NAO_IP = f"tcp://{ip}:{port}"
-        naoServices = NaoServices(NAO_IP)
+        naoServices = NaoServices(IP=NAO_IP)
         naoServices.nao_init()
         naoServices.nao_facetrack()
     else:
@@ -300,6 +300,7 @@ class ElevenLabsStream:
         if use_robot:
             self.voice_idx_to_id[0] = "Pepper"
             voice_descriptions[0] = "Pepper's own robot voice."
+        print(voice_descriptions)
         return voice_descriptions
         
     def _generate_stream(self, text):
